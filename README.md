@@ -1,7 +1,9 @@
 Peptide Landscape Antigenic Epitope Alignment Utility (PLAtEAU)
+
 A Python script for identifying, aligning, and quantifying antigenic epitopes displayed by MHCII molecules.
+
 Authors: Miguel Alvaro-Benito, Eliot Morrison, Esam Abualrous, Benno Kuropka, and Christian Freund
-FU Berlin
+(FU Berlin)
 
 #####################
 
