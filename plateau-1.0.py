@@ -1,4 +1,16 @@
 #!/usr/python
+#
+# Copyright (c) 2018 AG Freund, Freie Universitaet Berlin (GER)
+#
+# This program is distributed as a free scientific tool,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+#
+# For questions about running the script or for reporting bugs, please contact either:
+# Christian Freund (chfreund@zedat.fu-berlin.de)
+# or
+# Eliot Morrison (eliot.morrison@fu-berlin.de)
+#
 
 import sys
 import re
