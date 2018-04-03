@@ -9,6 +9,8 @@ Authors: Miguel Alvaro-Benito, Eliot Morrison, Esam Abualrous, Benno Kuropka, an
 
 Instructions
 
+This script requires the following libraries: numpy, scipy, itertools, pyteomics
+
 1. Perform identification of immunopeptidome mass spectrometric data using the MaxQuant software with the parameters of your choice.
 
 2. (optional) Filter the evidence.txt file to your specifications. Examples include removing potential contaminants, peptides identified with low confidence, or background peptides from IP controls. 
