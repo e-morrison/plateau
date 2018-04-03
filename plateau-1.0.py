@@ -27,21 +27,6 @@ from os.path import isfile, join
 from scipy.stats import ttest_ind
 import statistics
 
-import matplotlib.pyplot as plt
-from itertools import combinations
-from scipy.stats import ttest_ind
-from matplotlib.markers import TICKDOWN
-
-import shutil
-from shutil import copyfile
-#import cv2
-import scipy
-
-import pandas as pd
-from matplotlib.colors import LogNorm
-from matplotlib_venn import venn3, venn3_circles, venn2, venn2_circles
-
-#import pymzml
 
 
 def openfile(filename, cols):
