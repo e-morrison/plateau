@@ -139,6 +139,7 @@ def get_cond_peps(file_in, fasta_file):
 		unique_bio_reps = ['']
 		count = 0
 		prot_seqs = []
+		no_fasta = []
 
 		for a in raw:
 				prots = a[inds[1]].split(';')
@@ -146,7 +147,7 @@ def get_cond_peps(file_in, fasta_file):
 				for b in prots:
 						prot = b.split('CON__')[-1]
 						prot_seq = ''
-						if prot not in unique_prots:
+						if prot not in unique_prots and [prot] not in no_fasta:
 								fasta_test = False
 #								print prot
 								for description, sequence in fasta.read(fasta_file):
@@ -159,6 +160,7 @@ def get_cond_peps(file_in, fasta_file):
 										prot_seqs.append([prot, prot_seq])
 								else:
 										print 'No FASTA match:', prot
+										no_fasta.append([prot])
 
 				if a[inds[2]] not in unique_conds:
 						unique_conds.append(a[inds[2]])
