@@ -7,6 +7,10 @@ Authors: Miguel Alvaro-Benito, Eliot Morrison, Esam Abualrous, Benno Kuropka, an
 
 #####################
 
+*** PLAtEAU is now available as a free web tool! It is available at https://plateau.bcp.fu-berlin.de/
+
+#####################
+
 Instructions
 
 This script requires the following libraries: numpy, scipy, itertools, pyteomics
