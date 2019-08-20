@@ -7,7 +7,7 @@ Authors: Miguel Alvaro-Benito, Eliot Morrison, Esam Abualrous, Benno Kuropka, an
 
 #####################
 
-*** PLAtEAU is now available as a free web tool! It is available at https://plateau.bcp.fu-berlin.de/
+*** PLAtEAU is now available as a free web tool! It can be accessed at https://plateau.bcp.fu-berlin.de/
 
 #####################
 
