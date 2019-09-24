@@ -2118,7 +2118,6 @@ elif filt_check == 'test':
     epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
     core_file = epi_file.split('.txt')[0] + '_epitopes.txt'
 
-
     # 1. add areas under curve
     #start = timeit.default_timer()
     #add_areas_to_evidence(evidence_file)
