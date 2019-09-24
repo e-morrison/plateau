@@ -285,7 +285,7 @@ def get_cond_peps(file_in, fasta_file):
 
             if pep_str != '':
                 entry = [prot, cond, pep_str, prot_seq, intens_str]
-                print(prot, count, '/', len(unique_prots))
+                #print(prot, count, '/', len(unique_prots))
                 out.append(entry)
 												
     file_out = file_in.split('.txt')[0] + '_passpeps.txt'
@@ -978,7 +978,7 @@ def gen_epitopes(file_in, fasta_file, min_epi_len, min_step_size, min_epi_overla
         entry[-2] = founds_for_entry_str
         entry[-1] = pep_match_str
         out.append(entry)
-        print(entry[0], total_count, '/', len(raw))
+        #print(entry[0], total_count, '/', len(raw))
 
     file_out = file_in.split('.txt')[0] + '_epitopes.txt'
     savefile(file_out, out, headers_out)
@@ -1014,8 +1014,8 @@ def comb_epis(evidence_file, epitope_file, exp_name):
                     unique_cores.append(core)
     unique_wholes = list(set(unique_wholes))
     unique_cores = list(set(unique_cores))
-    print('Unique wholes:', len(unique_wholes))
-    print('Unique cores:', len(unique_cores))
+    #print('Unique wholes:', len(unique_wholes))
+    #print('Unique cores:', len(unique_cores))
 
     # 0 = unique core
     # 1 = longest whole match
@@ -1050,7 +1050,7 @@ def comb_epis(evidence_file, epitope_file, exp_name):
                         unique_longest_wholes.append(longest_whole)
 
     unique_longest_wholes = list(set(unique_longest_wholes))
-    print('Unique longest wholes:', len(unique_longest_wholes))
+    #print('Unique longest wholes:', len(unique_longest_wholes))
 
     # 0 = core, 1 = whole
     unique_longest_cores = []
@@ -1133,7 +1133,7 @@ def comb_epis(evidence_file, epitope_file, exp_name):
                     seen.append(longest_core)
                     unique_longest_cores.append([longest_core, a])
 
-    print('Unique longest cores:', len(unique_longest_cores))
+    #print('Unique longest cores:', len(unique_longest_cores))
 
     unique_conds = []
     for a in raw:
@@ -1219,10 +1219,10 @@ def comb_epis(evidence_file, epitope_file, exp_name):
             entry[start_ind] = str(intensity_sum)
             start_ind += 1
 
-        print(entry)
+        #print(entry)
         if count_total != zeroes:
             out.append(entry)
-            print(count, '/', len(unique_longest_cores))
+            #print(count, '/', len(unique_longest_cores))
 
 
     file_out = str(exp_name) + '_core_epitopes_final.txt'
@@ -1269,27 +1269,32 @@ def renorm(epi_file_in, imputation, filt_check):
             entry[i] = a[i]
         out.append(entry)
 
+    count = 0
     for col in range(last_ind,len(headers)):
+        count += 1
         all_vals = []
+        total_sum = 0.0
         for a in raw:
             if float(a[col]) > 0.0:
                 all_vals.append(float(a[col]))
 
-            total_sum = 0.0
-            for a in raw:
-                if imputation != 'no_imputation':
-                    if float(a[col]) != 0.0:
-                        total_sum += float(a[col])
-                    elif imputation == 'lowest_imputation':
+            if imputation != 'no_imputation':
+                if float(a[col]) != 0.0:
+                    total_sum += float(a[col])
+                else:
+                    if imputation == 'lowest_imputation':
                         total_sum += min(all_vals)
                     elif imputation == 'lowest_all':
                         total_sum += impute_val
                     else:
                         total_sum += float(a[col])
+            else:
+                total_sum += float(a[col])
 
-            new_sum = 0.0
-            for i in range(0,len(raw)):
-                val = raw[i][col]
+        new_sum = 0.0
+        for i in range(0,len(raw)):
+            val = raw[i][col]
+            if total_sum > 0.0:
                 if imputation != 'no_imputation':
                     if float(val) != 0.0:
                         new_val = float(val) / total_sum * 100.0
@@ -1299,8 +1304,11 @@ def renorm(epi_file_in, imputation, filt_check):
                     new_val = impute_val / total_sum * 100.0
                 else:
                     new_val = float(val) / total_sum * 100.0
-                new_sum += new_val
-                out[i][col] = str(new_val)
+            else:
+                new_val = float(val)
+            new_sum += new_val
+            out[i][col] = str(new_val)
+            #print(new_val, count, '/', len(headers)+last_ind)
 
     out_file = epi_file_in.split('.txt')[0] + '_renorm.txt'
 
@@ -1318,7 +1326,7 @@ def renorm(epi_file_in, imputation, filt_check):
 def final_output(exp_name, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params):
     cols = ['Core Epitope', 'Proteins', 'Core Epitope Length']
     filename = os.path.expanduser(resultdir+renorm_file.split('/')[-1])
-    raw = list(csv.reader(open(filename, 'rU'), delimiter='\t'))
+    raw = list(csv.reader(open(filename, 'r'), delimiter='\t'))
     headers = raw[0]
     raw = raw[1:]
 
@@ -1348,9 +1356,12 @@ def final_output(exp_name, renorm_file, evidence_file, fasta_file, filt_check, d
     to_print = []
     to_print.append('Contains <strong>' + str(len(unique_peps)) + '</strong> unique peptides from <strong>' + str(len(unique_prots)) + '</strong> unique proteins')
 
+    fasta_file = str(fasta_file)
+    fasta_file = re.sub("b'", '', fasta_file)
+    fasta_file = re.sub("'", '', fasta_file)
     to_print.append('FASTA file used: ' + fasta_file.split('/')[-1])
 
-    if filt_check == 'no_filt':
+    if filt_check == 'no_filt' or filt_check == 'test':
         to_print.append('No replicate filtering used.<br>')
     else:
         to_print.append('Filtering used:')
@@ -2102,48 +2113,68 @@ elif filt_check == 'filt_ready':
     final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
 
 elif filt_check == 'test':
-    exp = 'testexp'
+    exp = 'testexp2'
     exp = html.escape(exp).encode("ascii", "xmlcharrefreplace")
-    evidence_file = 'k_test.txt'
+    #evidence_file = 'k_test.txt'
+    evidence_file = 'test_evidence.txt'
     evidence_file = html.escape(evidence_file).encode("ascii", "xmlcharrefreplace")
-    fasta_file = 'k_fasta.fasta'
+    #fasta_file = 'k_fasta.fasta'
+    fasta_file = 'test_fasta.fasta'
     fasta_file = html.escape(fasta_file).encode("ascii", "xmlcharrefreplace")
     evidence_file = os.path.expanduser(evidence_file)
     fasta_file = os.path.expanduser(fasta_file)
     min_epi_len = 13
 
 
+    exp = str(exp)
+    exp = re.sub("b'", '', exp)
+    exp = re.sub("'", '', exp)
     evidence_file = str(evidence_file)
     pass_file = evidence_file.split('.txt')[0] + '_intens_norm.txt'
     epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
     core_file = epi_file.split('.txt')[0] + '_epitopes.txt'
+    epitope_final_file = exp + '_core_epitopes_final.txt'
+    renorm_file = epitope_final_file.split('.txt')[0] + '_renorm.txt'
 
+    start_all = timeit.default_timer()
     # 1. add areas under curve
-    #start = timeit.default_timer()
-    #add_areas_to_evidence(evidence_file)
-    #stop = timeit.default_timer()
-    #print('add_areas_to_evidence time: ', stop - start)  
+    start = timeit.default_timer()
+    add_areas_to_evidence(evidence_file)
+    stop = timeit.default_timer()
+    print('add_areas_to_evidence time: ', stop - start)  
 
     # 2. for each protein / condition, get list of matching peptides
     # this is used to generate the core epitopes for each condition
-    #start = timeit.default_timer()
-    #get_cond_peps(pass_file, fasta_file)
-    #stop = timeit.default_timer()
-    #print('get_cond_peps time: ', stop - start)  
+    start = timeit.default_timer()
+    get_cond_peps(pass_file, fasta_file)
+    stop = timeit.default_timer()
+    print('get_cond_peps time: ', stop - start)  
 
     # 3. generate epitopes from passing peptides
-    #start = timeit.default_timer()
-    #gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
-    #stop = timeit.default_timer()
-    #print('gen_epitopes: ', stop - start)  
+    start = timeit.default_timer()
+    gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
+    stop = timeit.default_timer()
+    print('gen_epitopes: ', stop - start)  
 
     # 4. combine unique core epitopes
     # get total rel. intensity for each condition
-    #start = timeit.default_timer()
-    #comb_epis(pass_file, core_file, exp)
-    #stop = timeit.default_timer()
-    #print('comb_epis: ', stop - start)  
+    start = timeit.default_timer()
+    comb_epis(pass_file, core_file, exp)
+    stop = timeit.default_timer()
+    print('comb_epis: ', stop - start)  
 
+    # Renormalize after filtering, etc.
+    start = timeit.default_timer()
+    imputation = 'no_imputation'
+    renorm(epitope_final_file, imputation, filt_check)
+    dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
+    venn_html = []	
+    filt_params = []
+    final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
+    stop = timeit.default_timer()
+    print('cleanup: ', stop - start)  
 
+    stop_all = timeit.default_timer()
+    print('Total: ', stop_all - start_all)  
 
 
