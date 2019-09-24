@@ -993,35 +993,35 @@ def comb_epis(evidence_file, epitope_file, exp_name):
             ]
     epis, epi_headers, epi_inds = openfile(epitope_file, cols)
 
-    cols = ['Sequence', 'Proteins', 'Raw file', 'Intensity (normalized)'					]
+    cols = ['Sequence', 'Proteins', 'Raw file', 'Intensity (normalized)']
     raw, headers, inds = openfile(evidence_file, cols)
 
 
     # find all unique wholes
     unique_wholes = []
-    for a in epis:
-        wholes = a[epi_inds[3]].split(';')
-        if wholes[0] != '':
-            for i in wholes:
-                whole = i.split('-')[1]
-                if whole not in unique_wholes and whole != '':
-                    unique_wholes.append(whole)
-
-    # match unique cores to wholes; choose longest match
     unique_cores = []
     for a in epis:
+        wholes = a[epi_inds[3]].split(';')
         cores = a[epi_inds[2]].split(';')
-        if cores[0] != '':
+        if wholes[0] != '' and cores[0] != '':
+            for i in wholes:
+                whole = i.split('-')[1]
+                if whole != '':
+                    unique_wholes.append(whole)
             for i in cores:
                 core = i.split('-')[1]
-                if core not in unique_cores and '--' not in i:
+                if '--' not in i:
                     unique_cores.append(core)
+    unique_wholes = list(set(unique_wholes))
+    unique_cores = list(set(unique_cores))
+    print('Unique wholes:', len(unique_wholes))
+    print('Unique cores:', len(unique_cores))
 
     # 0 = unique core
     # 1 = longest whole match
 
     unique_longest_wholes = []
-		
+
     for a in unique_cores:
         whole_matches = []
         whole_lens = []
@@ -1048,6 +1048,9 @@ def comb_epis(evidence_file, epitope_file, exp_name):
                     longest_whole = whole_matches[i]
                     if longest_whole not in unique_longest_wholes:
                         unique_longest_wholes.append(longest_whole)
+
+    unique_longest_wholes = list(set(unique_longest_wholes))
+    print('Unique longest wholes:', len(unique_longest_wholes))
 
     # 0 = core, 1 = whole
     unique_longest_cores = []
@@ -1090,17 +1093,21 @@ def comb_epis(evidence_file, epitope_file, exp_name):
             else:
                 core1 = longest_cores[0]
                 core2 = longest_cores[1]
-                if core1[0] == '*':
-                    core1 = core1[1:]
-                if core2[0] == '*':
-                    core2 = core2[1:]
-                if core1[-1] == '*':
-                    core1 = core1[:-1]
-                if core2[-1] == '*':
-                    core2 = core2[:-1]
+                if '*' in core1 and len(core1) > 1:
+                    if core1[0] == '*':
+                        core1 = core1[1:]
+                    if core1[-1] == '*':
+                        core1 = core1[:-1]
+                if '*' in core2 and len(core2) > 1:
+                    if core2[0] == '*':
+                        core2 = core2[1:]
+                    if core2[-1] == '*':
+                        core2 = core2[:-1]
 
                 n_dist_1 = a.split(core1)[0]
                 n_dist_2 = a.split(core2)[0]
+                #print(a, core1, n_dist_1)
+                #print(a, core2, n_dist_2)
 
                 if n_dist_1 > n_dist_2:
                     first_core = core2
@@ -1126,31 +1133,31 @@ def comb_epis(evidence_file, epitope_file, exp_name):
                     seen.append(longest_core)
                     unique_longest_cores.append([longest_core, a])
 
+    print('Unique longest cores:', len(unique_longest_cores))
 
     unique_conds = []
-
     for a in raw:
-        if a[inds[2]] not in unique_conds:
-            unique_conds.append(a[inds[2]])
-
+        unique_conds.append(a[inds[2]])
+    unique_conds = list(set(unique_conds))
     unique_conds.sort()
-    unique_bio_reps = ['']
-    unique_tech_reps = ['']
 
     headers_out = ['Core Epitope', 'Proteins', 'Core Epitope Length', 'Whole Epitope']
-    for cond in unique_conds:
-        for bio_rep in unique_bio_reps:
-            for tech_rep in unique_tech_reps:
-                name = cond
-                headers_out.append('% Rel. Intens. in ' + name)
+    for name in unique_conds:
+        headers_out.append('% Rel. Intens. in ' + name)
 
     out = []
 
-    used_peps = [] # [0] = peptide, [1] = rel. intensity
+    count = 0
 
     for a in unique_longest_cores:
+        count += 1
         entry = ['']*len(headers_out)
         core = a[0]
+        core_test = core
+        if core[0] == '*':
+            core_test = core[1:]
+        if core[-1] == '*':
+            core_test = core[:-1]
         whole = a[1]
         start_ind = 4
 
@@ -1159,34 +1166,36 @@ def comb_epis(evidence_file, epitope_file, exp_name):
         entry[3] = whole
 
         prots = []
+        exp_intens = []
 
+        #start1 = timeit.default_timer()
         for b in epis:
-            cores = b[epi_inds[2]].split(';')
-            wholes = b[epi_inds[3]].split(';')
+            if core_test in b[epi_inds[3]]:
+                cores = b[epi_inds[2]].split(';')
+                wholes = b[epi_inds[3]].split(';')
+                intens = b[epi_inds[4]].split(';')
 
-            for i in range(0,len(cores)):
-                if cores[0] != '':
-                    core_test = cores[i].split('-')[1]
-                else:
-                    core_test = []
+                for i in range(0,len(cores)):
+                    if wholes[0] != '':
+                        whole_test = wholes[i].split('-')[1]
+                    else:
+                        whole_test = []
 
-                if wholes[0] != '':
-                    whole_test = wholes[i].split('-')[1]
-                else:
-                    whole_test = []
-
-                if core in whole_test:
-                    if b[epi_inds[0]] not in prots:
+                    if core_test in whole_test:
                         prots.append(b[epi_inds[0]])
-                if core[0] == '*':
-                    if core[1:] in whole_test:
-                        if b[epi_inds[0]] not in prots:
-                            prots.append(b[epi_inds[0]])
-                elif core[-1] == '*':
-                    if core[:-1] in whole_test:
-                        if b[epi_inds[0]] not in prots:
-                            prots.append(b[epi_inds[0]])
+                        max_intens = 0.0
+                        intens_vals = []
+                        for c in intens[i].split('--'):
+                            intens_vals.append(float(c))
+                        if len(intens_vals) > 0:
+                            max_intens = max(intens_vals)
+                        if max_intens != 0.0:
+                            exp_intens.append([b[epi_inds[1]], max_intens])
 
+        #stop1 = timeit.default_timer()
+        #print('time: ', stop1 - start1)  
+
+        prots = list(set(prots))
         prots.sort()
         prot_str = ''
         for b in prots:
@@ -1197,58 +1206,26 @@ def comb_epis(evidence_file, epitope_file, exp_name):
         count_total = 0
         zeroes = 0
         all_inds = []
+
         for cond in unique_conds:
-            bio_inds = []
-            bio_passes = 0
-            for bio_rep in unique_bio_reps:
-                tech_inds = []
-                tech_passes = 0
-                for tech_rep in unique_tech_reps:
-                    intensity_sum = 0.0
-                    for b in raw:
-                        if b[inds[2]] == cond:
-                            if b[inds[0]] in whole:
-                                if b[inds[3]] != '':
-                                    pep_pair = [b[inds[0]], b[inds[2]]]
-                                    if pep_pair not in used_peps:
-                                        intensity_sum += float(b[inds[3]])
-                                        used_peps.append(pep_pair)
-                    intensity_sum *= 100.0
-
-                    if intensity_sum == 0.0:
-                        zeroes += 1
-                    else:
-                        tech_passes += 1
-                    count_total += 1
-
-                    entry[start_ind] = str(intensity_sum)
-                    tech_inds.append(start_ind)
-                    if start_ind not in bio_inds:
-                        bio_inds.append(start_ind)
-                    if start_ind not in all_inds:
-                        all_inds.append(start_ind)
-                    start_ind += 1
-
-                if 1 != 1:
-                    for i in tech_inds:
-                        entry[i] = '0.0'
-                else:
-                    bio_passes += 1
-										
-            if 1 != 1:
-                for i in bio_inds:
-                    entry[i] = '0.0'
-        zeroes = 0
-        count_total = 0
-        for i in all_inds:
             count_total += 1
-            if entry[i] == '0.0':
+            intensity_sum = 0.0
+            for c in exp_intens:
+                if c[0] == cond:
+                    intensity_sum += c[1]
+            if intensity_sum == 0.0:
                 zeroes += 1
 
+            entry[start_ind] = str(intensity_sum)
+            start_ind += 1
+
+        print(entry)
         if count_total != zeroes:
             out.append(entry)
+            print(count, '/', len(unique_longest_cores))
 
-    file_out = exp_name + '_core_epitopes_final.txt'
+
+    file_out = str(exp_name) + '_core_epitopes_final.txt'
     savefile(file_out, out, headers_out)
 
 				
@@ -2136,12 +2113,14 @@ elif filt_check == 'test':
     min_epi_len = 13
 
 
+    evidence_file = str(evidence_file)
+    pass_file = evidence_file.split('.txt')[0] + '_intens_norm.txt'
+    epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
+    core_file = epi_file.split('.txt')[0] + '_epitopes.txt'
 
     # 1. add areas under curve
     #start = timeit.default_timer()
     #add_areas_to_evidence(evidence_file)
-    evidence_file = str(evidence_file)
-    pass_file = evidence_file.split('.txt')[0] + '_intens_norm.txt'
     #stop = timeit.default_timer()
     #print('add_areas_to_evidence time: ', stop - start)  
 
@@ -2153,13 +2132,17 @@ elif filt_check == 'test':
     #print('get_cond_peps time: ', stop - start)  
 
     # 3. generate epitopes from passing peptides
-    start = timeit.default_timer()
-    epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
-    gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
-    stop = timeit.default_timer()
-    print('gen_epitopes: ', stop - start)  
+    #start = timeit.default_timer()
+    #gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
+    #stop = timeit.default_timer()
+    #print('gen_epitopes: ', stop - start)  
 
-
+    # 4. combine unique core epitopes
+    # get total rel. intensity for each condition
+    #start = timeit.default_timer()
+    #comb_epis(pass_file, core_file, exp)
+    #stop = timeit.default_timer()
+    #print('comb_epis: ', stop - start)  
 
 
 
