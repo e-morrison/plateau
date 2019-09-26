@@ -1321,41 +1321,39 @@ def renorm(epi_file_in, imputation, filt_check):
     for col in range(last_ind,len(headers)):
         count += 1
         all_vals = []
-        total_sum = 0.0
         for a in raw:
             if float(a[col]) > 0.0:
                 all_vals.append(float(a[col]))
 
-            if imputation != 'no_imputation':
-                if float(a[col]) != 0.0:
-                    total_sum += float(a[col])
-                else:
-                    if imputation == 'lowest_imputation':
-                        total_sum += min(all_vals)
-                    elif imputation == 'lowest_all':
-                        total_sum += impute_val
-                    else:
-                        total_sum += float(a[col])
-            else:
+        total_sum = 0.0
+        for a in raw:
+            if float(a[col]) > 0.0:
                 total_sum += float(a[col])
+            else:
+                if imputation == 'lowest_imputation':
+                    total_sum += min(all_vals)
+                elif imputation == 'lowest_all':
+                    total_sum += impute_val
 
         new_sum = 0.0
         for i in range(0,len(raw)):
             val = raw[i][col]
             new_val = float(val)
-            if total_sum > 0.0:
-                if imputation != 'no_imputation':
-                    if float(val) != 0.0:
-                        new_val = float(val) / total_sum * 100.0
-                elif imputation == 'lowest_imputation':
-                    new_val = min(all_vals) / total_sum * 100.0
+
+            if new_val == 0.0 and imputation != 'no_imputation':
+                if imputation == 'lowest_imputation':
+                    new_val = min(all_vals)
                 elif imputation == 'lowest_all':
-                    new_val = impute_val / total_sum * 100.0
-                else:
-                    new_val = float(val) / total_sum * 100.0
+                    new_val = impute_val
+
+            if total_sum > 0.0:
+                new_val = new_val / total_sum * 100.0
+            
             new_sum += new_val
             out[i][col] = str(new_val)
             #print(new_val, count, '/', len(headers)+last_ind)
+
+        print(new_sum)
 
     out_file = epi_file_in.split('.txt')[0] + '_renorm.txt'
 
@@ -2192,7 +2190,7 @@ elif filt_check == 'test':
     start_all = timeit.default_timer()
     # 1. add areas under curve
     start = timeit.default_timer()
-    add_areas_to_evidence(evidence_file)
+    #add_areas_to_evidence(evidence_file)
     stop = timeit.default_timer()
     print('add_areas_to_evidence time: ', stop - start)  
 
@@ -2200,20 +2198,20 @@ elif filt_check == 'test':
     # this is used to generate the core epitopes for each condition
     start = timeit.default_timer()
     #get_cond_peps(pass_file, fasta_file)
-    get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
+    #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
     stop = timeit.default_timer()
     print('get_cond_peps time: ', stop - start)  
 
     # 3. generate epitopes from passing peptides
     start = timeit.default_timer()
-    gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
+    #gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
     stop = timeit.default_timer()
     print('gen_epitopes: ', stop - start)  
 
     # 4. combine unique core epitopes
     # get total rel. intensity for each condition
     start = timeit.default_timer()
-    comb_epis(pass_file, core_file, exp)
+    #comb_epis(pass_file, core_file, exp)
     stop = timeit.default_timer()
     print('comb_epis: ', stop - start)  
 
