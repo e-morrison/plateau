@@ -301,8 +301,9 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
 
     unique_peps = []
     for a in raw:
-        if a[inds[0]] not in unique_peps:
-            unique_peps.append(a[inds[0]])
+        unique_peps.append(a[inds[0]])
+
+    unique_peps = list(set(unique_peps))
 
     unique_conds_1 = []
     unique_bio_reps_1 = []
@@ -317,36 +318,57 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
         bio_rep = a[2]
         tech_rep = a[3]
 
-        if cond not in unique_conds_1:
-            unique_conds_1.append(cond)
-        if cond+';'+bio_rep not in unique_bio_reps_1:
-            unique_bio_reps_1.append(cond+';'+bio_rep)
-        if cond+';'+bio_rep+';'+tech_rep not in unique_tech_reps_1:
-            unique_tech_reps_1.append(cond+';'+bio_rep+';'+tech_rep)
-
+        unique_conds_1.append(cond)
+        unique_bio_reps_1.append(cond+';'+bio_rep)
+        unique_tech_reps_1.append(cond+';'+bio_rep+';'+tech_rep)
         vars.append(a)
 
-    pep_headers = ['Sequence']
+    unique_conds_1 = list(set(unique_conds_1))
+    unique_bio_reps_1 = list(set(unique_bio_reps_1))
+    unique_tech_reps_1 = list(set(unique_tech_reps_1))
+
+    pep_headers = ['Sequence', 'Protein']
     for cond in unique_conds_1:
         pep_headers.append('Pass in ' + cond)
     pep_pass_table = []
 
+    unique_peps.sort()
+    raw.sort()
+    start_ind = 0
+
+    count = 0
     for pep in unique_peps:
+        count += 1
         pass_test = False
-        pep_ind = 1
+        pep_ind = 2
         entry = ['']*len(pep_headers)
         entry[0] = pep
+        prots = []
+
+        pep_raw = []
+        for i in range(start_ind,len(raw)-1):
+            a = raw[i]
+            next_ent = raw[i+1]
+            if i >= len(raw)-1:
+                pep_raw.append(a)
+
+            if a[inds[0]] == pep:
+                pep_raw.append(a)
+                if next_ent[inds[0]] != pep:
+                    start_ind = i-1
+                    break
 
         for cond in unique_conds_1:
             cond_raws = []
             for b in vars:
                 if b[1] == cond:
                     cond_raws.append(b[0])
-		
+	
             bio_pass = False
             bio_reps_found = []
-            for a in raw:
+            for a in pep_raw:
                 if a[inds[0]] == pep:
+                    prots.append(a[inds[1]])
                     check = False
                     raw_file = a[inds[2]]
                     for c in cond_raws:
@@ -360,7 +382,6 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
                         if bio_rep not in bio_reps_found:
                             bio_reps_found.append(bio_rep)
 
-
             if len(bio_reps_found) >= bio_rep_min:
                 bio_nums = []
                 for bio_rep_a in bio_reps_found:
@@ -370,7 +391,7 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
                             bio_rep_raws.append(c[0])
 
                     tech_reps_found = []
-                    for a in raw:
+                    for a in pep_raw:
                         if a[inds[0]] == pep:
                             check = False
                             raw_file = a[inds[2]]
@@ -381,8 +402,9 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
                                         if d[0] == raw_file:
                                             bio_rep = d[2]
                                             tech_rep = d[3]
-                            if check == True and bio_rep_a == bio_rep and tech_rep not in tech_reps_found:
+                            if check == True and bio_rep_a == bio_rep:
                                 tech_reps_found.append(tech_rep)
+                    tech_reps_found = list(set(tech_reps_found))
                     bio_nums.append([bio_rep_a, len(tech_reps_found)])
 
                 passing_bios = 0
@@ -400,6 +422,13 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
 
             pep_ind += 1
 
+        prots = list(set(prots))
+        prot_str = ''
+        for b in prots:
+            prot_str += b + ';'
+        entry[1] = prot_str
+        #print(pep, count, '/', len(unique_peps))
+
         pep_pass_table.append(entry)
 
 
@@ -407,7 +436,7 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
     savefile(pep_file_out, pep_pass_table, pep_headers)
     pep_pass_table = pep_pass_table[1:]
 
-    unique_prots = []
+    unique_prots_raw = []
     unique_conds = []
     unique_bio_reps = ['']
     count = 0
@@ -418,66 +447,85 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
         prots = a[inds[1]].split(';')
         count += 1
         for b in prots:
-            prot = b.split('CON__')[-1]
-            prot_seq = ''
-            if prot not in unique_prots and [prot] not in no_fasta:
-                fasta_test = False
-                for description, sequence in fasta.read(fasta_file):
-                    if '|'+prot+'|' in description:
-                        fasta_test = True
-                        prot_seq = sequence
-                if fasta_test == True:
-                    unique_prots.append(prot)
-                    prot_seqs.append([prot, prot_seq])
-                else:
-                    if [prot] not in no_fasta:
-                        no_fasta.append([prot])
+            if len(b) > 0:
+                prot = b.split('CON__')[-1]
+                if '|' in prot:
+                    prot = prot.split('|')[1]
+                unique_prots_raw.append(prot)
+        unique_conds.append(a[inds[2]])
 
-        if a[inds[2]] not in unique_conds:
-            unique_conds.append(a[inds[2]])
+    unique_prots_raw = list(set(unique_prots_raw))
+    unique_conds = list(set(unique_conds))
+    unique_prots = []
+
+    fasta_str = ''
+    fasta_seqs = []
+    for description, sequence in fasta.read(fasta_file):
+        fasta_str += description.split('|')[1] + ';'
+        fasta_seqs.append(sequence)
+
+    count = 0
+    for prot in unique_prots_raw:
+        count += 1
+        fasta_test = False
+        if prot+';' in fasta_str:
+            fasta_test = True
+            unique_prots.append(prot)
+        else:
+            no_fasta.append([prot])
+    unique_prots = list(set(unique_prots))
 
     headers_out = ['Protein', 'Experiment', 'Passing Peptides', 'FASTA seq', 'Intensities (normalized)']
     out = []
-		
+	
+    count = 0
     for prot in unique_prots:
+        count += 1
+        split1 = fasta_str.split(prot+';')
+        fasta_ind = len(split1[0].split(';'))
+        prot_seq = fasta_seqs[fasta_ind-1]
+
+        prot_raw = []
+        for a in raw:
+            if prot in a[inds[1]]:
+                prot_raw.append(a)
+        pep_raw = []
+        for a in pep_pass_table:
+            if prot in a[1]:
+                pep_raw.append(a)
+
+        ents = []
+        zeroes = 0
         for raw_file in unique_conds:
-            for bio_rep in unique_bio_reps:
-                pep_list = []
-                intens_list = []
-                for a in raw:
-                    if prot in a[inds[1]]:
-                        if raw_file == a[inds[2]]:
-                            pass_test = False
-                            for b in vars:
-                                if raw_file == b[0]:
-                                    cond = b[1]
-                            for i in range(0,len(pep_headers)):
-                                if 'Pass in ' + cond in pep_headers[i]:
-                                    pep_ind = i
-                            for c in pep_pass_table:
-                                if c[0] == a[inds[0]]:
-                                    if c[pep_ind] == 'Yes':	
-                                        pass_test = True				
-                            if pass_test == True:
-                                pep_list.append(a[inds[0]])
-                                intens_list.append(a[inds[4]])
+            pep_str = ''
+            intens_str = ''
+            for a in prot_raw:
+                if raw_file == a[inds[2]]:
+                    pass_test = False
+                    for b in vars:
+                        if raw_file == b[0]:
+                            cond = b[1]
+                    for i in range(0,len(pep_headers)):
+                        if 'Pass in ' + cond in pep_headers[i]:
+                            pep_ind = i
+                    for c in pep_raw:
+                        if c[0] == a[inds[0]]:
+                            if c[pep_ind] == 'Yes':	
+                                pep_str += a[inds[0]] + ';'
+                                intens_str += a[inds[4]] + ';'
 
-                pep_str = ''
-                for i in pep_list:
-                    pep_str += i + ';'
-                pep_str = pep_str[:-1]
+            pep_str = pep_str[:-1]
+            intens_str = intens_str[:-1]
 
-                intens_str = ''
-                for i in intens_list:
-                    intens_str += i + ';'
-                intens_str = intens_str[:-1]
-
-                for b in prot_seqs:
-                    if b[0] == prot:
-                        prot_seq = b[1]
-
-                entry = [prot, raw_file, pep_str, prot_seq, intens_str]
+            entry = [prot, raw_file, pep_str, prot_seq, intens_str]
+            ents.append(entry)
+            if intens_str == '':
+                zeroes += 1
+            #out.append(entry)
+        if zeroes != len(ents):
+            for entry in ents:
                 out.append(entry)
+                #print(entry[-1], count, '/', len(unique_prots))
 												
     file_out = file_in.split('.txt')[0] + '_passpeps_filt.txt'
     savefile(file_out, out, headers_out)
@@ -1294,6 +1342,7 @@ def renorm(epi_file_in, imputation, filt_check):
         new_sum = 0.0
         for i in range(0,len(raw)):
             val = raw[i][col]
+            new_val = float(val)
             if total_sum > 0.0:
                 if imputation != 'no_imputation':
                     if float(val) != 0.0:
@@ -1304,8 +1353,6 @@ def renorm(epi_file_in, imputation, filt_check):
                     new_val = impute_val / total_sum * 100.0
                 else:
                     new_val = float(val) / total_sum * 100.0
-            else:
-                new_val = float(val)
             new_sum += new_val
             out[i][col] = str(new_val)
             #print(new_val, count, '/', len(headers)+last_ind)
@@ -2113,18 +2160,17 @@ elif filt_check == 'filt_ready':
     final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
 
 elif filt_check == 'test':
-    exp = 'testexp2'
+    exp = 'testexp2_filt'
     exp = html.escape(exp).encode("ascii", "xmlcharrefreplace")
-    #evidence_file = 'k_test.txt'
-    evidence_file = 'test_evidence.txt'
+    evidence_file = 'k_test.txt'
+    #evidence_file = 'test_evidence.txt'
     evidence_file = html.escape(evidence_file).encode("ascii", "xmlcharrefreplace")
-    #fasta_file = 'k_fasta.fasta'
-    fasta_file = 'test_fasta.fasta'
+    fasta_file = 'k_fasta.fasta'
+    #fasta_file = 'test_fasta.fasta'
     fasta_file = html.escape(fasta_file).encode("ascii", "xmlcharrefreplace")
     evidence_file = os.path.expanduser(evidence_file)
     fasta_file = os.path.expanduser(fasta_file)
     min_epi_len = 13
-
 
     exp = str(exp)
     exp = re.sub("b'", '', exp)
@@ -2135,6 +2181,13 @@ elif filt_check == 'test':
     core_file = epi_file.split('.txt')[0] + '_epitopes.txt'
     epitope_final_file = exp + '_core_epitopes_final.txt'
     renorm_file = epitope_final_file.split('.txt')[0] + '_renorm.txt'
+    imputation = 'no_imputation'
+
+    # For testing filtered runs
+    var_file = 'ktest_vars_final.txt'
+    tech_rep_min = 2
+    bio_rep_min = 1
+    imputation = 'lowest_all'
 
     start_all = timeit.default_timer()
     # 1. add areas under curve
@@ -2146,7 +2199,8 @@ elif filt_check == 'test':
     # 2. for each protein / condition, get list of matching peptides
     # this is used to generate the core epitopes for each condition
     start = timeit.default_timer()
-    get_cond_peps(pass_file, fasta_file)
+    #get_cond_peps(pass_file, fasta_file)
+    get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
     stop = timeit.default_timer()
     print('get_cond_peps time: ', stop - start)  
 
@@ -2165,7 +2219,6 @@ elif filt_check == 'test':
 
     # Renormalize after filtering, etc.
     start = timeit.default_timer()
-    imputation = 'no_imputation'
     renorm(epitope_final_file, imputation, filt_check)
     dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
