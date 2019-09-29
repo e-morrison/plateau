@@ -1405,10 +1405,11 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
         for i in range(fasta_ind,len(unique_wholes)-1):
             b = unique_wholes[i]
             next_b = unique_wholes[i+1]
-            if b.split('--')[0] == fasta_seq and b.split('--')[2] == prots:
+            if b.split('--')[0] == fasta_seq:
                 whole_test = b.split('--')[1]
-                if i == len(unique_wholes)-1 and next_b.split('--')[0] == fasta_seq:
-                    whole_matches.append(whole_test)
+                if i == len(unique_wholes)-1:
+                    if next_b.split('--')[0] == fasta_seq:
+                        whole_matches.append(whole_test)
                 if core_test in whole_test:
                     whole_matches.append(whole_test)
                 if next_b.split('--')[0] != fasta_seq:
@@ -1419,7 +1420,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
         if len(whole_matches) > 0:
             longest_whole = get_longest(whole_matches, fasta_seq)
             unique_longest_wholes.append(fasta_seq + '--' + longest_whole + '--' + prots)
-            #print('longest whole:', longest_whole, count, '/', len(unique_cores))       
+            print('longest whole:', longest_whole, count, '/', len(unique_cores))       
     unique_longest_wholes = list(set(unique_longest_wholes))
     unique_longest_wholes.sort()
 
@@ -1687,7 +1688,6 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
         entry = ['']*len(headers_out)
         core = a[0]
         whole = a[1]
-        unique_wholes.append(whole)
         fasta_seq = a[2]
         prot_str = a[3]
 
@@ -1805,9 +1805,9 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
             entry[pep_ind] = pep_str
 
         if zeros != len(unique_exps):
+            unique_wholes.append(whole)
             out.append(entry)
-            #print(entry[0], count, '/', len(core_whole_pairs))
-            #print(entry)
+            print(entry[0], entry[1], count, '/', len(core_whole_pairs))
 
 
     unique_wholes = list(set(unique_wholes))
@@ -1818,8 +1818,9 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
     out2 = out
     out = []
     start_ind = 0
-    start_ind_2 = 0
+    count = 0
     for whole in unique_wholes:
+        count += 1
         cores = []
         prots = []
 
@@ -1847,9 +1848,10 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
 
         prot_str = ''
         for prot in prots:
-            prot_str += ';'
+            prot_str += prot + ';'
         prot_str = prot_str[:-1]
 
+        start_ind_2 = 0
         for core in cores2:
             entry = ['']*len(headers_out)
             entry[0] = core
@@ -1861,14 +1863,16 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
                 b = out2[i]
                 next_b = out2[i+1]
 
-                if b[3] == whole and b[0] == core:
-                    for i in range(4,len(b)):
-                        entry[i] = b[i]
+                if b[3] == whole:
+                    if re.sub('\*','',b[0]) == re.sub('\*','',core):
+                        for i in range(4,len(b)):
+                            entry[i] = b[i]
 
                     if next_b[3] != whole:
                         start_ind_2 = i-1
                         break
             out.append(entry)
+            print(entry[0], count, '/', len(unique_wholes))
 
     file_out = exp_name + '_core_epitopes_final.txt'
     savefile(file_out, out, headers_out)
@@ -1967,18 +1971,18 @@ def renorm(epi_file_in, imputation, filt_check):
             new_landscape = ''
             for x in landscape.split('--'):
                 new_val = float(x)
-                #if new_val == 0.0 and imputation != 'no_imputation':
-                #    if imputation == 'lowest_imputation':
-                #        new_val = min(all_vals)
-                #    elif imputation == 'lowest_all':
-                #        new_val = impute_val
+                if new_val == 0.0 and imputation != 'no_imputation':
+                    if imputation == 'lowest_imputation':
+                        new_val = min(all_vals)
+                    elif imputation == 'lowest_all':
+                        new_val = impute_val
                 if total_sum > 0.0:
                     new_val = new_val / total_sum * 100.0
                 new_landscape += str(new_val) + '--'
             new_landscape = new_landscape[:-2]
             out[i][landscape_col] = new_landscape
             
-            #print(new_val, count, '/', len(headers)+last_ind)
+            print(new_val, count, '/', len(headers)+last_ind)
 
     out_file = epi_file_in.split('.txt')[0] + '_renorm.txt'
 
@@ -2201,24 +2205,22 @@ def gen_len_dist(exp, evidence_file, epitope_file):
     unique_peptides = []
     peptide_lens = []
     for a in evidence:
-        if a[e_i[0]] not in unique_peptides:
-            unique_peptides.append(a[e_i[0]])	
-            peptide_lens.append(len(a[e_i[0]]))
+        unique_peptides.append(a[e_i[0]])	
+
+    unique_peptides = list(set(unique_peptides))
+    for a in unique_peptides:
+        peptide_lens.append(len(a))
 
     unique_epitopes = []
     epitope_lens = []
     for a in epitopes:
-        if a[ep_i[0]] not in unique_epitopes:
-            unique_epitopes.append(a[ep_i[0]])	
+        unique_epitopes.append(a[ep_i[0]])	
 
-            epitope = a[ep_i[0]]
-            if epitope[0] == '*':
-                epitope = epitope[1:]
-            if epitope[-1] == '*':
-                epitope = epitope[:-1]	
-
-            epitope_lens.append(len(epitope))
- 
+    unique_epitopes = list(set(unique_epitopes))
+    for a in unique_epitopes:
+        if '*' in a:
+            a = re.sub('\*','',a)
+        epitope_lens.append(len(a))
 
     fig = plt.figure()
     ax = plt.subplot(111)
@@ -3984,13 +3986,13 @@ elif filt_check == 'test':
     # get total rel. intensity for each condition
     start = timeit.default_timer()
     #comb_epis(pass_file, core_file, exp)
-    comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
+    #comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
     stop = timeit.default_timer()
-    print('comb_epis: ', stop - start)  
+    #print('comb_epis: ', stop - start)  
 
     # 5. Renormalize after filtering, etc.
     start = timeit.default_timer()
-    renorm(epitope_final_file, imputation, filt_check)
+    #renorm(epitope_final_file, imputation, filt_check)
     dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
     filt_params = []
