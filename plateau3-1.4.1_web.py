@@ -48,6 +48,7 @@ from PIL import Image, ImageDraw, ImageFont
 expdir = './'
 resultdir = './'
 net_path = '/Users/eliotmorrison/netMHCIIpan-3.2/'
+iedb_path = '../IEDB/'
 
 
 if not os.path.exists(resultdir):
@@ -1672,7 +1673,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
     unique_exps = list(set(unique_exps))
     unique_exps.sort()
 
-    headers_out = ['Core Epitope', 'Proteins', 'Core Epitope Length', 'Whole Epitope']
+    headers_out = ['Core Epitope', 'Proteins', 'Core Epitope Length', 'Whole Epitope', 'FASTA Seqs']
     for a in unique_exps:
         headers_out.append('% Rel. Intens. in ' + a)
     for a in unique_exps:
@@ -1698,6 +1699,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
         entry[1] = prot_str
         entry[2] = str(len(core))
         entry[3] = whole
+        entry[4] = fasta_seq
 
         # 0 = experiment
         # 1 = pep
@@ -1826,6 +1828,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
         count += 1
         cores = []
         prots = []
+        fastas = []
 
         for i in range(start_ind,len(out2)-1):
             b = out2[i]
@@ -1834,6 +1837,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
             if b[3] == whole:
                 cores.append(b[0])
                 prots.append(b[1])
+                fastas.append(b[4])
             
                 if next_b[3] != whole:
                     start_ind = i-1
@@ -1854,6 +1858,11 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
             prot_str += prot + ';'
         prot_str = prot_str[:-1]
 
+        fasta_str = ''
+        for f in fastas:
+            fasta_str += f + ';'
+        fasta_str = fasta_str[:-1]
+
         start_ind_2 = 0
         for core in cores2:
             entry = ['']*len(headers_out)
@@ -1861,6 +1870,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
             entry[1] = prot_str
             entry[2] = str(len(re.sub('\*','',core)))
             entry[3] = whole
+            entry[4] = fasta_str
 
             for i in range(start_ind_2,len(out2)-1):
                 b = out2[i]
@@ -1888,7 +1898,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
 def renorm(epi_file_in, imputation, filt_check):
     raw, headers, inds = openfile(epi_file_in, [])
     for i in range(0,len(headers)):
-        if headers[i] == 'Whole Epitope':
+        if headers[i] == 'FASTA Seqs':
             last_ind = i + 1
 
     rel_cols = []
@@ -2864,8 +2874,8 @@ def draw_pep(pep_seq, pep_color, label_text, img_width, res_spacing):
 
 
 
-def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, high_cutoff, med_cutoff, temp_path, net_path, epi_file):
-    cols = ['Core Epitope', 'Proteins', 'Whole Epitope']
+def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, high_cutoff, med_cutoff, temp_path, net_path, epi_file, iedb_path):
+    cols = ['Core Epitope', 'Proteins', 'Whole Epitope', 'FASTA Seqs']
     raw, headers, inds = openfile(os.path.expanduser(final_file_in), cols)
 
     cols = ['Protein', 'Experiment', 'FASTA seq', 'Core epitopes', 'Whole epitopes', 'PLAtEAU Intens. (norm)', 
@@ -2879,6 +2889,23 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
             unique_exps.append(exp)
     unique_exps = list(set(unique_exps))
 
+    raw_split = []
+    for a in raw:
+        if ';' in a[inds[1]]:
+            prot_split = a[inds[1]].split(';')
+            fasta_split = a[inds[3]].split(';')
+            for i in range(0,len(prot_split)):
+                entry = ['']*len(a)
+                for j in range(0,len(a)):
+                    entry[j] = a[j]
+                entry[inds[1]] = prot_split[i]
+                entry[inds[3]] = fasta_split[i]
+                raw_split.append(entry)
+        else:
+            raw_split.append(a)
+
+    raw_split.sort(key=lambda x: x[4])
+    
     prot_fasta = []
     for a in cores:
         prot_fasta.append(a[c_i[0]] + '--' + a[c_i[2]])
@@ -2903,7 +2930,9 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
         master_len = min_len
         longest_len = longest_len - (extra_side*2)
 
-    for a in raw:
+    count = 0
+    for a in raw_split:
+        count += 1
         entry = ['']*len(headers)
         for i in range(0,len(a)):
             entry[i] = a[i]
@@ -2920,36 +2949,45 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
         unique_whole_seqs = []
         prot_fasta_rev = []
 
-        for b in prot_fasta:
-            split1 = b.split('--')
-            sequence = split1[1]
-            prot_fasta_rev.append(sequence + '--' + split1[0])
-            if whole_seq in sequence:
-                seq_start = sequence.split(whole_seq)[0][-fig_margin_left:]
-                seq_end = sequence.split(whole_seq)[-1][:fig_margin_right]
-                whole_seq_with_margin = seq_start + '-' + whole_seq + '-' + seq_end
-                unique_whole_seqs.append(whole_seq_with_margin)
-        unique_whole_seqs = list(set(unique_whole_seqs))
-        unique_whole_seqs.sort()
-        prot_fasta_rev.sort()
+        sequence = a[inds[3]]
+        seq_start = sequence.split(whole_seq)[0][-fig_margin_left:]
+        seq_end = sequence.split(whole_seq)[-1][:fig_margin_right]
+        whole_seq_with_margin = seq_start + '-' + whole_seq + '-' + seq_end
+        unique_whole_seqs.append(whole_seq_with_margin)
 
-        start_ind = 0
+        prot_str = a[inds[1]]      
+
+        #for b in prot_fasta:
+        #    split1 = b.split('--')
+        #    sequence = split1[1]
+        #    prot_fasta_rev.append(sequence + '--' + split1[0])
+        #    if whole_seq in sequence:
+        #        seq_start = sequence.split(whole_seq)[0][-fig_margin_left:]
+        #        seq_end = sequence.split(whole_seq)[-1][:fig_margin_right]
+        #        whole_seq_with_margin = seq_start + '-' + whole_seq + '-' + seq_end
+        #        unique_whole_seqs.append(whole_seq_with_margin)
+        #unique_whole_seqs = list(set(unique_whole_seqs))
+        #unique_whole_seqs.sort()
+        #prot_fasta_rev.sort()
+        print(a[0], len(unique_whole_seqs), count, '/', len(raw))
+
+        #start_ind = 0
         for b in unique_whole_seqs:
             seq_start = b.split('-')[0]
             seq_end = b.split('-')[-1]
             seq_center = b.split('-')[1]
-            prot_matches = []
-            for i in range(start_ind,len(prot_fasta_rev)):
-                split1 = prot_fasta_rev[i].split('--')
-                if seq_start+seq_center+seq_end in split1[0]:
-                    prot_matches.append(split1[1])
-                    start_ind = i-1
-                    break
-            prot_matches = list(set(prot_matches))
-            prot_str = ''
-            for x in prot_matches:
-                prot_str += x + ';'
-            prot_str = prot_str[:-1]
+        #    prot_matches = []
+        #    for i in range(start_ind,len(prot_fasta_rev)):
+        #        split1 = prot_fasta_rev[i].split('--')
+        #        if seq_start+seq_center+seq_end in split1[0]:
+        #            prot_matches.append(split1[1])
+        #            start_ind = i-1
+        #            break
+        #    prot_matches = list(set(prot_matches))
+        #    prot_str = ''
+        #    for x in prot_matches:
+        #        prot_str += x + ';'
+        #    prot_str = prot_str[:-1]
 
             if len(seq_start) < fig_margin_left:
                 delt_val = fig_margin_left - len(seq_start)
@@ -3590,7 +3628,7 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
             cite_num = 1
             cites_seen = []
             for h in core_peps:
-                iedb_out = iedb_lookup(h, dr_allele)
+                iedb_out = iedb_lookup(h, dr_allele, iedb_path)
                 #print('Looking up ' + h + ' in IEDB')
                 # out = [pep, a[inds[9]], cite, iedb_num, qual, quant]
                 if len(iedb_out) > 0:
@@ -4036,19 +4074,19 @@ elif filt_check == 'test':
     # get total rel. intensity for each condition
     start = timeit.default_timer()
     #comb_epis(pass_file, core_file, exp)
-    #comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
+    comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
     stop = timeit.default_timer()
-    #print('comb_epis: ', stop - start)  
+    print('comb_epis: ', stop - start)  
 
     # 5. Renormalize after filtering, etc.
     start = timeit.default_timer()
-    #renorm(epitope_final_file, imputation, filt_check)
+    renorm(epitope_final_file, imputation, filt_check)
     #dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
     filt_params = []
     #final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
     stop = timeit.default_timer()
-    #print('cleanup: ', stop - start)  
+    print('cleanup: ', stop - start)  
 
     # 6. Remodel the landscapes to include jumps
     start = timeit.default_timer()
@@ -4058,7 +4096,7 @@ elif filt_check == 'test':
 
     # 7. NetMHCIIpan
     start = timeit.default_timer()
-    netmhciipan(renorm_file, length, dr_allele, core_file, fasta_file, high_cutoff, med_cutoff, expdir, net_path, epi_file)
+    netmhciipan(renorm_file, length, dr_allele, core_file, fasta_file, high_cutoff, med_cutoff, expdir, net_path, epi_file, iedb_path)
     stop = timeit.default_timer()
     print('netmhciipan: ', stop - start)  
 
