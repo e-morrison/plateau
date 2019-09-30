@@ -40,6 +40,9 @@ import cgitb
 import timeit
 import html
 
+from PIL import Image, ImageDraw, ImageFont
+
+
 #expdir = sys.argv[7]
 #resultdir = '../nobackup/results/'+(expdir.split('../../nobackup/uploads/')[-1])
 expdir = './'
@@ -2022,10 +2025,11 @@ def final_output(exp_name, renorm_file, evidence_file, fasta_file, filt_check, d
     unique_peps = []
     unique_prots = []
     for a in ev:
-        if a[e_i[0]] not in unique_peps:
-            unique_peps.append(a[e_i[0]])
-        if a[e_i[1]] not in unique_prots:
-            unique_prots.append(a[e_i[1]])
+        unique_peps.append(a[e_i[0]])
+        unique_prots.append(a[e_i[1]])
+    unique_peps = list(set(unique_peps))
+    unique_prots = list(set(unique_prots))
+
 
     to_print = []
     to_print.append('Contains <strong>' + str(len(unique_peps)) + '</strong> unique peptides from <strong>' + str(len(unique_prots)) + '</strong> unique proteins')
@@ -2062,9 +2066,9 @@ def final_output(exp_name, renorm_file, evidence_file, fasta_file, filt_check, d
     unique_prots = []
     lens = []
     for a in raw:
-        if a[inds[1]] not in unique_prots:
-            unique_prots.append(a[inds[1]])
+        unique_prots.append(a[inds[1]])
         lens.append(float(a[inds[2]]))
+    unique_prots = list(set(unique_prots))
     len_sum = 0.0
     for b in lens:
         len_sum += b
@@ -2206,7 +2210,6 @@ def gen_len_dist(exp, evidence_file, epitope_file):
     peptide_lens = []
     for a in evidence:
         unique_peptides.append(a[e_i[0]])	
-
     unique_peptides = list(set(unique_peptides))
     for a in unique_peptides:
         peptide_lens.append(len(a))
@@ -2215,7 +2218,6 @@ def gen_len_dist(exp, evidence_file, epitope_file):
     epitope_lens = []
     for a in epitopes:
         unique_epitopes.append(a[ep_i[0]])	
-
     unique_epitopes = list(set(unique_epitopes))
     for a in unique_epitopes:
         if '*' in a:
@@ -2786,15 +2788,85 @@ def iedb_lookup(pep, dr_allele, iedb_path):
 
 
 
+def draw_pep(pep_seq, pep_color, label_text, img_width, res_spacing):
+    #fontname_seq = 'monaco.ttf' # for seq
+    fontname_seq = 'DejaVuSans.ttf'
+    fontsize_seq = 85
+    fonttyp_seq = ImageFont.truetype(fontname_seq, fontsize_seq)
+
+    fontname_label = 'Calibri.ttf' # for label
+    fontsize_label = 40
+    fonttyp_label = ImageFont.truetype(fontname_label, fontsize_label)
+
+    pep_seq = re.sub(' ', '', pep_seq)
+
+    background = (255,255,255)
+
+    right_side = 800
+    #right_side = 20
+    scrap_width = (100*len(pep_seq)) + 8000
+
+    image = Image.new("RGB", (scrap_width,500), background)
+    draw = ImageDraw.Draw(image)
+    margin_top = 3 * 2
+    margin_side = 20 * 2
+    w, h = draw.textsize(pep_seq, font=fonttyp_seq)
+    w += (res_spacing*len(pep_seq))
+
+#    if img_width == 18:
+#        width = 1608
+#    else:
+#        width = w + margin_side
+    
+    width = 3000
+    height = h + margin_top
+
+    image2 = Image.new("RGB", (width+right_side, height+8000), background)
+
+    fill = "   "
+    x = 0
+    w_fill, y = draw.textsize(fill, font=fonttyp_seq)
+    y_mid = (height-h)/2
+    #x_draw, x_paste = 20, 300
+    x_draw, x_paste = 20, 20
+
+
+    for i in pep_seq:
+        w_full = draw.textsize(fill+i, font=fonttyp_seq)[0]
+        w_full += res_spacing
+        w = w_full - w_fill # width of character
+
+        if i != ' ':
+            draw.rectangle((x_draw+w_fill, 0, x_draw+w_full, y+5), pep_color)
+            draw.text(((x_draw+int(float(res_spacing)/2.0)),-5), fill+i, (0,0,0), font=fonttyp_seq)
+        else:
+            draw.rectangle((x_draw+w_fill, 0, x_draw+w_full, y+5), background)
+            draw.text((x_draw,0), fill+i, background, font=fonttyp_seq)
+
+        iletter = image.crop((x_draw+w_fill, 0, x_draw+w_full, y+5))
+        image2.paste(iletter, (x_paste, 0))
+        x_draw += w_full
+        x_paste += w
+
+    draw2 = ImageDraw.Draw(image2)
+    #draw2.text((width+300, 0), label_text, (0,0,0), font=fonttyp_label)
+
+
+    cropped = image2.crop((0,0,width+right_side,height))
+    out_name = os.path.expanduser('tmp/'+label_text + '_' + pep_seq + '_peptide.png')
+    out_name = re.sub(' ', '', out_name)
+    cropped.save(out_name)
+
+    return out_name
+
+
+
 
 
 
 def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, high_cutoff, med_cutoff, temp_path, net_path, epi_file):
     cols = ['Core Epitope', 'Proteins', 'Whole Epitope']
     raw, headers, inds = openfile(os.path.expanduser(final_file_in), cols)
-
-
-    raw = raw[:2]
 
     cols = ['Protein', 'Experiment', 'FASTA seq', 'Core epitopes', 'Whole epitopes', 'PLAtEAU Intens. (norm)', 
             'Peptides contributing to core epitopes']
@@ -2890,22 +2962,29 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
 
             whole_seq = seq_start + seq_center + seq_end
             unique_wholes.append(prot_str + '--' + whole_seq + '--' + seq_start + '--' + seq_end)
-            print(unique_wholes[-1])
+            #print(unique_wholes[-1])
 
     unique_wholes = list(set(unique_wholes))
 
+    count = 0
     for x in unique_wholes:
+        count += 1
         b = x.split('--')
         prot = b[0]
         whole_seq = b[1]
         seq_start = b[2]
         seq_end = b[3]
         cores_b = []
+        passing_exps = []
         for a in raw:
             core_epi = a[0]
             core_epi = re.sub('\*', '', core_epi)
             if core_epi in whole_seq and core_epi not in cores_b:
                 cores_b.append(core_epi)
+                for i in range(0,len(a)):
+                    if 'Unique Peptides in ' in headers[i] and a[i] != '':
+                        exp = headers[i].split('Unique Peptides in ')[-1]
+                        passing_exps.append(exp)
 
         core_tables = []
         core_poses = []
@@ -2920,7 +2999,8 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
             core_tables.append(core_table)
             core_poses.append(core_pos)
 
-        for exp in unique_exps:
+
+        for exp in passing_exps:
             net_test_seq = whole_seq
             if len(seq_start) > 0:
                 net_test_seq = net_test_seq.split(seq_start)[-1]
@@ -3133,16 +3213,16 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
                     for f in pep_pos:
                         if f[1] not in core_peps:
                             core_peps.append(f[1])
-                            print(f[1])
-            print(intens_landscape)
+                            #print(f[1])
+            #print(intens_landscape)
 
             intens_split = intens_landscape.split('--')
             save_file = True
-            print(intens_split)
+            #print(intens_split)
             if len(intens_split) == 0 or len(intens_split) == 1:
                 intens_split = ['0.0']*len(whole_seq)
                 save_file = False
-                print(intens_landscape)
+                #print(intens_landscape)
             aff_split = aff_landscape.split('--')
             if len(inf_table) > 0:
                 aff_1_split = aff_1_landscape.split('--')
@@ -3172,7 +3252,7 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
                 pos = g
                 res = whole_seq[g]
                 
-                print(len(whole_seq), len(intens_split))
+                #print(len(whole_seq), len(intens_split))
                 intens = intens_split[g]
                 aff = aff_split[g]
                 if len(inf_table) > 0:
@@ -3189,47 +3269,21 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
                     core_pos = core_poses[i]
                     if pos in core_pos:
                         if category != 'none':
-                            print(pos, res+'*', intens, aff, aff_1, aff_2, aff_3)
-                            print(pos, res+'-'+str(i), intens, aff, aff_1, aff_2, aff_3)
-                    #res = res+'*'
+                            pass
+                            #print(pos, res+'*', intens, aff, aff_1, aff_2, aff_3)
+                            #print(pos, res+'-'+str(i), intens, aff, aff_1, aff_2, aff_3)
                         res = res+'-'+str(i)
                 else:
                     if category != 'none':
-                        print(pos, res, intens, aff, aff_1, aff_2, aff_3)
+                        pass
+                        #print(pos, res, intens, aff, aff_1, aff_2, aff_3)
                 
-            #    if 'PEVVQNFY' in whole_seq: 
-            #        print pos, res, intens, aff, aff_1, aff_2, aff_3
                 all_vals_2.append([pos, res, intens, aff, aff_1, aff_2, aff_3])
-#                res_vals.append(res)
-#                intens_vals.append(float(intens))
-#                aff_vals.append(float(aff))
-#                if pos in core_pos:
-#                    core_res_vals.append(res)
-#                    core_intens_vals.append(float(intens))
-#                    core_aff_vals.append(float(intens))
-#                else:
-#                    core_res_vals.append(res)
-#                    core_intens_vals.append(0.0)
-#                    core_aff_vals.append(0.0)
-
-#            if len(seq_start) < fig_margin:
-#                seq_start = 'N-' + seq_start
-#                needed_spaces = fig_margin - len(seq_start)
-#                for i in range(0,needed_spaces):
-#                    seq_start = '_' + seq_start
-#            if len(seq_end) < fig_margin:
-#                seq_end = seq_end + '-C'
-#                needed_spaces = fig_margin - len(seq_end)
-#                for i in range(0,needed_spaces):
-#                    seq_end = seq_end + '_'
-
-#            fig_seq_str = seq_start + whole_seq + seq_end
+            
             fig_seq_str = whole_seq
             fig_seq = []
             for j in range(0,len(fig_seq_str)):
                 fig_seq.append(fig_seq_str[j])
-
-#            print len(fig_seq), len(intens_vals), len(core_intens_vals), len(aff_vals), len(core_aff_vals)
 
             res_vals = []
             intens_vals = []
@@ -3254,9 +3308,6 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
 
             ind_count = 0
             for g in all_vals_2:
-                #res_draw = re.sub('\*', '', g[1])
-                #res_vals.append(re.sub('\*', '', g[1]))
-                #whole_res_str += re.sub('\*', '', g[1])
                 res_draw = g[1]
                 if len(g[1]) > 1:
                     #res_draw = res_draw[:1]
@@ -3493,18 +3544,18 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
              #   y1 = pts[1][1]
              #   tick_pos.append([pos, res, x0, y0, x1, y1])
 
-            print(tick_pos[1], tick_pos[0])
+            #print(tick_pos[1], tick_pos[0])
             #res_spacing = float(tick_pos[1][2]) - float(tick_pos[0][2])
 
             
             xtickslocs = ax.get_xticks()
             ymin, _ = ax.get_ylim()
-            print('xticks pixel coordinates')
+            #print('xticks pixel coordinates')
             tick_array = ax.transData.transform([(xtick, ymin) for xtick in xtickslocs])
             tick_pos = []
             for x in tick_array:
                 tick_pos.append([x[0], x[1]])
-                print(tick_pos[-1])
+                #print(tick_pos[-1])
             #res_spacing = int(tick_pos[1][0] - tick_pos[0][0])
             #res_spacing = int(float(res_spacing)/2.0)
             
@@ -3512,7 +3563,7 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
             #res_spacing = 13
             res_spacing = int(1.02*(0.0566*(float(len(whole_res_str))**2)) - (6.589*float(len(whole_res_str))) + 192.74) 
             
-            print(res_spacing)
+            #print(res_spacing)
             #res_spacing = int(float(res_spacing)*1.38)
             #res_spacing += 10
             x_axis_start = tick_pos[0][0]
@@ -3525,9 +3576,9 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
             #        ]
             
             peps_to_draw = []
-            print(len(core_poses))
-            print(core_pep_strs)
-            print(core_cols)
+            #print(len(core_poses))
+            #print(core_pep_strs)
+            #print(core_cols)
             for j in range(0,len(core_poses)):
                 peps_to_draw.append([core_pep_strs[j], core_cols[j], 'PLAtEAU Core'])
             peps_to_draw.append([net_pep_1_str, aff_core_color, net_label_1])
@@ -3540,7 +3591,7 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
             cites_seen = []
             for h in core_peps:
                 iedb_out = iedb_lookup(h, dr_allele)
-                print('Looking up ' + h + ' in IEDB')
+                #print('Looking up ' + h + ' in IEDB')
                 # out = [pep, a[inds[9]], cite, iedb_num, qual, quant]
                 if len(iedb_out) > 0:
                     cite = iedb_out[2]
@@ -3554,7 +3605,7 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
                         pep_label = quant + ' (IEDB: ' + iedb_num + ') [' + str(cite_num) + ']'
                     else:
                         pep_label = '(' + qual + ') (IEDB: ' + iedb_num + ') [' + str(cite_num) + ']'
-                    print(h, pep_label)
+                    #print(h, pep_label)
                     
                     if cite not in cites_seen:
                         cites_seen.append(cite)
@@ -3594,12 +3645,11 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
             plt.title(prot_title)
             out_file = os.path.expanduser('tmp/' + exp + '_' + dr_allele + '_' + category + '_' + prot_title + '_' + re.sub('_', '', whole_seq)[:20] + '_intens_aff_plot.png')
             if save_file == True:
-            #if 1 == 1:
                 #plt.savefig(out_file, bbox_inches='tight', dpi=dpi)
                 plt.savefig(out_file, dpi=dpi)
                 
                 plt.clf()
-                print('Saving ' + out_file)
+                print('Saving ' + out_file, count, '/', len(unique_wholes))
 
                 imgs_to_open = [out_file]
                 x_coors = [0]
@@ -3607,8 +3657,8 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
                 #base_x_offset = 650
                 #res_width = 50 + (res_spacing)
                 #res_width = 83
-                print('base x offset:', base_x_offset)
-                print('res width:', res_width)
+                #print('base x offset:', base_x_offset)
+                #print('res width:', res_width)
                 
                 # linear equation: num_chars = 0.0117*(x_pos) - 5.8583
                 # x_pos = (num_chars + 5.8583) / 0.0117
@@ -3636,13 +3686,13 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
                         #full_len = x_offset + (len(x[1]) * (res_width))
                         if x[3] != '':
                             all_widths.append(full_len)
-                        print(x[1], start_res_num, x_offset)
+                        #print(x[1], start_res_num, x_offset)
 
                         labels.append(x[3])
                         pep_cols.append(x[2])
 
 
-                images = map(Image.open, imgs_to_open)
+                images = list(map(Image.open, imgs_to_open))
                 widths, heights = zip(*(i.size for i in images))
 
                 top_margin = 20
@@ -3993,24 +4043,24 @@ elif filt_check == 'test':
     # 5. Renormalize after filtering, etc.
     start = timeit.default_timer()
     #renorm(epitope_final_file, imputation, filt_check)
-    dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
+    #dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
     filt_params = []
-    final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
+    #final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
     stop = timeit.default_timer()
-    print('cleanup: ', stop - start)  
+    #print('cleanup: ', stop - start)  
 
     # 6. Remodel the landscapes to include jumps
     start = timeit.default_timer()
-    remodel_wholes(renorm_file, fasta_file, core_file)
+    #remodel_wholes(renorm_file, fasta_file, core_file)
     stop = timeit.default_timer()
-    print('remodel: ', stop - start)  
+    #print('remodel: ', stop - start)  
 
     # 7. NetMHCIIpan
-    #start = timeit.default_timer()
-    #netmhciipan(renorm_file, length, dr_allele, core_file, fasta_file, high_cutoff, med_cutoff, expdir, net_path, epi_file)
-    #stop = timeit.default_timer()
-    #print('netmhciipan: ', stop - start)  
+    start = timeit.default_timer()
+    netmhciipan(renorm_file, length, dr_allele, core_file, fasta_file, high_cutoff, med_cutoff, expdir, net_path, epi_file)
+    stop = timeit.default_timer()
+    print('netmhciipan: ', stop - start)  
 
 
     stop_all = timeit.default_timer()
