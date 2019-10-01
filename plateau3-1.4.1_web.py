@@ -1836,8 +1836,9 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
 
             if b[3] == whole:
                 cores.append(b[0])
-                prots.append(b[1])
-                fastas.append(b[4])
+                if b[1] not in prots:
+                    prots.append(b[1])
+                    fastas.append(b[4])
             
                 if next_b[3] != whole:
                     start_ind = i-1
@@ -2891,9 +2892,11 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
 
     raw_split = []
     for a in raw:
-        if ';' in a[inds[1]]:
+        if ';' in a[inds[1]] and ';' in a[inds[3]]:
             prot_split = a[inds[1]].split(';')
             fasta_split = a[inds[3]].split(';')
+            print(prot_split)
+            print(fasta_split)
             for i in range(0,len(prot_split)):
                 entry = ['']*len(a)
                 for j in range(0,len(a)):
@@ -2969,7 +2972,7 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
         #unique_whole_seqs = list(set(unique_whole_seqs))
         #unique_whole_seqs.sort()
         #prot_fasta_rev.sort()
-        print(a[0], len(unique_whole_seqs), count, '/', len(raw))
+        #print(a[0], len(unique_whole_seqs), count, '/', len(raw))
 
         #start_ind = 0
         for b in unique_whole_seqs:
@@ -2999,31 +3002,56 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
                 seq_end = seq_end + add_marg
 
             whole_seq = seq_start + seq_center + seq_end
-            unique_wholes.append(prot_str + '--' + whole_seq + '--' + seq_start + '--' + seq_end)
+            unique_wholes.append(sequence + '--' + prot_str + '--' + whole_seq + '--' + seq_start + '--' + seq_end)
             #print(unique_wholes[-1])
 
     unique_wholes = list(set(unique_wholes))
+    unique_wholes.sort()
+    raw_split.append(['']*len(headers))
 
     count = 0
+    fasta_ind = 0
     for x in unique_wholes:
         count += 1
         b = x.split('--')
-        prot = b[0]
-        whole_seq = b[1]
-        seq_start = b[2]
-        seq_end = b[3]
+        fasta_seq = b[0]
+        prot = b[1]
+        whole_seq = b[2]
+        seq_start = b[3]
+        seq_end = b[4]
         cores_b = []
         passing_exps = []
-        for a in raw:
-            core_epi = a[0]
-            core_epi = re.sub('\*', '', core_epi)
-            if core_epi in whole_seq and core_epi not in cores_b:
-                cores_b.append(core_epi)
-                for i in range(0,len(a)):
-                    if 'Unique Peptides in ' in headers[i] and a[i] != '':
-                        exp = headers[i].split('Unique Peptides in ')[-1]
-                        passing_exps.append(exp)
 
+        for i in range(fasta_ind,len(raw_split)-1):
+            b = raw_split[i]
+            next_b = raw_split[i+1]
+
+            if b[inds[3]] == fasta_seq:
+                core_epi = b[0]
+                if '*' in core_epi:
+                    core_epi = re.sub('\*','',core_epi)
+                if core_epi in whole_seq:
+                    cores_b.append(core_epi)
+                    for i in range(0,len(a)):
+                        if 'Unique Peptides in ' in headers[i] and a[i] != '':
+                            exp = headers[i].split('Unique Peptides in ')[-1]
+                            passing_exps.append(exp)
+
+                if next_b[inds[3]] != fasta_seq:
+                    fasta_ind = i-1
+                    break
+
+        #for a in raw_split:
+        #    core_epi = a[0]
+        #    core_epi = re.sub('\*', '', core_epi)
+        #    if core_epi in whole_seq and core_epi not in cores_b:
+        #        cores_b.append(core_epi)
+        #        for i in range(0,len(a)):
+        #            if 'Unique Peptides in ' in headers[i] and a[i] != '':
+        #                exp = headers[i].split('Unique Peptides in ')[-1]
+        #                passing_exps.append(exp)
+
+        cores_b = list(set(cores_b))
         core_tables = []
         core_poses = []
         for core_epi in cores_b:
@@ -3793,6 +3821,13 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
 
 
 
+# Report
+# Take original evidence file, compare to Plateau output
+
+
+
+
+
 
 
 ##################
@@ -4074,19 +4109,19 @@ elif filt_check == 'test':
     # get total rel. intensity for each condition
     start = timeit.default_timer()
     #comb_epis(pass_file, core_file, exp)
-    comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
+    #comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
     stop = timeit.default_timer()
-    print('comb_epis: ', stop - start)  
+    #print('comb_epis: ', stop - start)  
 
     # 5. Renormalize after filtering, etc.
     start = timeit.default_timer()
-    renorm(epitope_final_file, imputation, filt_check)
+    #renorm(epitope_final_file, imputation, filt_check)
     #dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
     filt_params = []
     #final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
     stop = timeit.default_timer()
-    print('cleanup: ', stop - start)  
+    #print('cleanup: ', stop - start)  
 
     # 6. Remodel the landscapes to include jumps
     start = timeit.default_timer()
