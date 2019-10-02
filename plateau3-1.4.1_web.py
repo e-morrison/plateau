@@ -1369,6 +1369,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
 
     unique_wholes = []
     unique_cores = []
+    unique_fastas = []
     for a in epis:
         prots = a[epi_inds[0]]
         fasta_seq = a[fasta_ind]
@@ -1379,6 +1380,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
                 whole_test = re.sub('\*', '', whole)
                 if whole_test != '' and len(whole_test) >= min_epi_len:
                     unique_wholes.append(fasta_seq + '--' + whole + '--' + prots)
+                    unique_fastas.append(fasta_seq)
 
         cores = a[epi_inds[2]].split(';')
         if cores[0] != '':
@@ -1390,41 +1392,98 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
                 core_test = re.sub('\*', '', core)
                 if core_test != '' and len(core_test) >= min_epi_len:
                     unique_cores.append(fasta_seq + '--' + core + '--' + prots)
+                    unique_fastas.append(fasta_seq)
 
     unique_wholes = list(set(unique_wholes))
     unique_cores = list(set(unique_cores))
+    unique_fastas = list(set(unique_fastas))
     unique_wholes.sort()
     unique_cores.sort()
+    unique_fastas.sort()
+    unique_wholes.append('--')
 
     unique_longest_wholes = []
     count = 0
     fasta_ind = 0
-    for c in unique_cores:
+    for fasta_seq in unique_fastas:
         count += 1
-        core = c.split('--')[1]
-        fasta_seq = c.split('--')[0]
-        prots = c.split('--')[2]
-        core_test = re.sub('\*', '', core)
         whole_matches = []
+        starts = []
+        ends = []
+        prots = ''
         for i in range(fasta_ind,len(unique_wholes)-1):
             b = unique_wholes[i]
             next_b = unique_wholes[i+1]
-            if b.split('--')[0] == fasta_seq:
-                whole_test = b.split('--')[1]
-                if i == len(unique_wholes)-1:
-                    if next_b.split('--')[0] == fasta_seq:
-                        whole_matches.append(whole_test)
-                if core_test in whole_test:
-                    whole_matches.append(whole_test)
+            b_split = b.split('--')
+            if b_split[0] == fasta_seq:
+                whole_test = re.sub('\*','',b_split[1])
+                start_pos = len(fasta_seq.split(whole_test)[0])
+                end_pos = start_pos + len(b_split[1])
+                starts.append(start_pos)
+                ends.append(end_pos)
+                whole_matches.append(b_split[1])
+                prots = b_split[2]
+
                 if next_b.split('--')[0] != fasta_seq:
                     fasta_ind = i-1
                     break
-
         whole_matches = list(set(whole_matches))
+
         if len(whole_matches) > 0:
-            longest_whole = get_longest(whole_matches, fasta_seq)
-            unique_longest_wholes.append(fasta_seq + '--' + longest_whole + '--' + prots)
-            print('longest whole:', longest_whole, count, '/', len(unique_cores))       
+            bin_seq = ''
+            for i in range(0,len(fasta_seq)):
+                res = 0
+                for j in range(0,len(starts)):
+                    if starts[j] <= i <= ends[j]:
+                        res = 1
+                bin_seq += str(res)
+
+            longest_wholes = []
+            ind_pos = 0
+            for k in bin_seq.split('0'):
+                if len(k) == 0:
+                    ind_pos += 1
+                else:
+                    longest_wholes.append(fasta_seq[ind_pos:ind_pos+len(k)-1])
+                    #print(longest_wholes[-1], whole_matches)
+                    ind_pos += len(k)
+                    
+            longest_wholes = list(set(longest_wholes))
+            print(longest_wholes, count, '/', len(unique_fastas))
+            for new_whole in longest_wholes:
+                unique_longest_wholes.append(fasta_seq + '--' + new_whole + '--' + prots)
+                #if 'GSDQSEN' in new_whole:
+                #    print(whole_matches)
+                #    print(new_whole)
+            
+    #count = 0
+    #fasta_ind = 0
+    #for c in unique_cores:
+    #    count += 1
+    #    core = c.split('--')[1]
+    #    fasta_seq = c.split('--')[0]
+    #    prots = c.split('--')[2]
+    #    core_test = re.sub('\*', '', core)
+    #    whole_matches = []
+    #    for i in range(fasta_ind,len(unique_wholes)-1):
+    #        b = unique_wholes[i]
+    #        next_b = unique_wholes[i+1]
+    #        if b.split('--')[0] == fasta_seq:
+    #            whole_test = b.split('--')[1]
+    #             if i == len(unique_wholes)-1:
+    #                if next_b.split('--')[0] == fasta_seq:
+    #                    whole_matches.append(whole_test)
+    #            if core_test in whole_test:
+    #                whole_matches.append(whole_test)
+    #            if next_b.split('--')[0] != fasta_seq:
+    #                fasta_ind = i-1
+    #                break
+    #    whole_matches = list(set(whole_matches))
+    #    if len(whole_matches) > 0:
+    #        longest_whole = get_longest(whole_matches, fasta_seq)
+    #        unique_longest_wholes.append(fasta_seq + '--' + longest_whole + '--' + prots)
+    #        print('longest whole:', longest_whole, count, '/', len(unique_cores))       
+    
     unique_longest_wholes = list(set(unique_longest_wholes))
     unique_longest_wholes.sort()
 
@@ -1922,6 +1981,7 @@ def renorm(epi_file_in, imputation, filt_check):
         all_vals = []
         for col in rel_cols:
             for a in raw:
+                print(a)
                 if float(a[col]) > 0.0:
                     all_vals.append(float(a[col]))
         if len(all_vals) > 0:
@@ -4109,19 +4169,19 @@ elif filt_check == 'test':
     # get total rel. intensity for each condition
     start = timeit.default_timer()
     #comb_epis(pass_file, core_file, exp)
-    #comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
+    comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
     stop = timeit.default_timer()
     #print('comb_epis: ', stop - start)  
 
     # 5. Renormalize after filtering, etc.
     start = timeit.default_timer()
-    #renorm(epitope_final_file, imputation, filt_check)
-    #dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
+    renorm(epitope_final_file, imputation, filt_check)
+    dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
     filt_params = []
-    #final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
+    final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
     stop = timeit.default_timer()
-    #print('cleanup: ', stop - start)  
+    print('cleanup: ', stop - start)  
 
     # 6. Remodel the landscapes to include jumps
     start = timeit.default_timer()
@@ -4131,9 +4191,9 @@ elif filt_check == 'test':
 
     # 7. NetMHCIIpan
     start = timeit.default_timer()
-    netmhciipan(renorm_file, length, dr_allele, core_file, fasta_file, high_cutoff, med_cutoff, expdir, net_path, epi_file, iedb_path)
+    #netmhciipan(renorm_file, length, dr_allele, core_file, fasta_file, high_cutoff, med_cutoff, expdir, net_path, epi_file, iedb_path)
     stop = timeit.default_timer()
-    print('netmhciipan: ', stop - start)  
+    #print('netmhciipan: ', stop - start)  
 
 
     stop_all = timeit.default_timer()
