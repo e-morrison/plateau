@@ -3883,7 +3883,7 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
 
 # Report
 # Take original evidence file, compare to Plateau output
-
+# Number of peptides / epitopes (from HTML output)
 
 
 
