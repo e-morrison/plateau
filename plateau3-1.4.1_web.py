@@ -1750,7 +1750,6 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
     unique_wholes = []
     for a in core_whole_pairs:
         count += 1
-        entry = ['']*len(headers_out)
         core = a[0]
         whole = a[1]
         fasta_seq = a[2]
@@ -1775,8 +1774,6 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
                 end_pos = start_pos + len(core)
 
                 core_matches.append([core, start_pos, end_pos])
-
-        core_matches = list(set(core_matches))
 
         bin_str = ''
         for i in range(0,len(whole)):
@@ -4232,10 +4229,10 @@ elif filt_check == 'test':
     # this is used to generate the core epitopes for each condition
     start = timeit.default_timer()
     #get_cond_peps(pass_file, fasta_file)
-    get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
+    #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
     fasta_file = fasta_file.split('.fasta')[0] + '_small.fasta'
     stop = timeit.default_timer()
-    print('get_cond_peps time: ', stop - start)  
+    #print('get_cond_peps time: ', stop - start)  
 
     # 3. generate epitopes from passing peptides
     start = timeit.default_timer()
@@ -4249,7 +4246,7 @@ elif filt_check == 'test':
     #comb_epis(pass_file, core_file, exp)
     #comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
     stop = timeit.default_timer()
-    #print('comb_epis: ', stop - start)  
+    print('comb_epis: ', stop - start)  
 
     # 5. Renormalize after filtering, etc.
     start = timeit.default_timer()
@@ -4257,7 +4254,7 @@ elif filt_check == 'test':
     dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
     filt_params = []
-    #final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
+    final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
     stop = timeit.default_timer()
     #print('cleanup: ', stop - start)  
 
