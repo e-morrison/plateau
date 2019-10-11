@@ -269,11 +269,17 @@ def get_cond_peps(file_in, fasta_file):
     out = []
 	
     count = 0
+
+    small_fasta = []
+
     for prot in unique_prots:
         count += 1
         split1 = fasta_str.split(prot+';')
         fasta_ind = len(split1[0].split(';'))
         prot_seq = fasta_seqs[fasta_ind-1]
+
+        small_fasta.append(['>|' + prot + '|'])
+        small_fasta.append([prot_seq])
 
         prot_raw = []
         for a in raw:
@@ -301,6 +307,9 @@ def get_cond_peps(file_in, fasta_file):
 
     file_out = file_in.split('.txt')[0] + '_missing_fasta.txt'
     savefile(file_out, no_fasta, ['Missing'])
+
+    file_out = fasta_file.split('.fasta')[0] + '_small.fasta'
+    savefile(file_out, small_fasta, [])
 
 
 def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min):
@@ -488,13 +497,18 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
 
     headers_out = ['Protein', 'Experiment', 'Passing Peptides', 'FASTA seq', 'Intensities (normalized)']
     out = []
-	
+
+    small_fasta = []
+
     count = 0
     for prot in unique_prots:
         count += 1
         split1 = fasta_str.split(prot+';')
         fasta_ind = len(split1[0].split(';'))
         prot_seq = fasta_seqs[fasta_ind-1]
+        
+        small_fasta.append(['>|' + prot + '|'])
+        small_fasta.append([prot_seq])
 
         prot_raw = []
         for a in raw:
@@ -536,7 +550,7 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
         if zeroes != len(ents):
             for entry in ents:
                 out.append(entry)
-                #print(entry[-1], count, '/', len(unique_prots))
+                print(entry[-1], count, '/', len(unique_prots))
 												
     file_out = file_in.split('.txt')[0] + '_passpeps_filt.txt'
     savefile(file_out, out, headers_out)
@@ -544,6 +558,8 @@ def get_cond_peps_filt(file_in, fasta_file, var_file, bio_rep_min, tech_rep_min)
     file_out = file_in.split('.txt')[0] + '_missing_fasta.txt'
     savefile(file_out, no_fasta, ['Missing'])
 
+    file_out = fasta_file.split('.fasta')[0] + '_small.fasta'
+    savefile(file_out, small_fasta, [])
 
 
 def gen_epitopes(file_in, fasta_file, min_epi_len, min_step_size, min_epi_overlap):
@@ -1724,6 +1740,23 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
                     longest_core = get_longest(group_4, whole_seq)
                     core_whole_pairs.append([longest_core, whole_seq, fasta_seq, prots])
                     #print('Group 4 longest core:', longest_core)
+
+
+
+    core_pairs_2 = []
+    count = 0
+    core_whole_pairs.sort(key=lambda x: x[2])
+    fasta_ind = 0
+    for a in core_whole_pairs:
+        count += 1
+        entry = ['']*len(headers_out)
+        core = a[0]
+        whole = a[1]
+        fasta_seq = a[2]
+        prot_str = a[3]
+
+
+
 
 
     unique_exps = []
@@ -4108,14 +4141,14 @@ elif filt_check == 'filt_ready':
     final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
 
 elif filt_check == 'test':
-    exp = 'a_test'
+    exp = 'k_test'
     exp = html.escape(exp).encode("ascii", "xmlcharrefreplace")
-    #evidence_file = 'k_test.txt'
+    evidence_file = 'k_test.txt'
     #evidence_file = 'test_evidence.txt'
-    evidence_file = 'a_evidence.txt'
+    #evidence_file = 'a_evidence.txt'
     evidence_file = html.escape(evidence_file).encode("ascii", "xmlcharrefreplace")
-    #fasta_file = 'k_fasta.fasta'
-    fasta_file = 'a_fasta.fasta'
+    fasta_file = 'k_fasta.fasta'
+    #fasta_file = 'a_fasta.fasta'
     #fasta_file = 'test_fasta.fasta'
     fasta_file = html.escape(fasta_file).encode("ascii", "xmlcharrefreplace")
     evidence_file = os.path.expanduser(evidence_file)
@@ -4156,9 +4189,10 @@ elif filt_check == 'test':
     # this is used to generate the core epitopes for each condition
     start = timeit.default_timer()
     #get_cond_peps(pass_file, fasta_file)
-    #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
+    get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
+    fasta_file = fasta_file.split('.fasta')[0] + '_small.fasta'
     stop = timeit.default_timer()
-    #print('get_cond_peps time: ', stop - start)  
+    print('get_cond_peps time: ', stop - start)  
 
     # 3. generate epitopes from passing peptides
     start = timeit.default_timer()
@@ -4170,19 +4204,19 @@ elif filt_check == 'test':
     # get total rel. intensity for each condition
     start = timeit.default_timer()
     #comb_epis(pass_file, core_file, exp)
-    comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
+    #comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
     stop = timeit.default_timer()
     #print('comb_epis: ', stop - start)  
 
     # 5. Renormalize after filtering, etc.
     start = timeit.default_timer()
-    renorm(epitope_final_file, imputation, filt_check)
+    #renorm(epitope_final_file, imputation, filt_check)
     dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
     filt_params = []
-    final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
+    #final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
     stop = timeit.default_timer()
-    print('cleanup: ', stop - start)  
+    #print('cleanup: ', stop - start)  
 
     # 6. Remodel the landscapes to include jumps
     start = timeit.default_timer()
