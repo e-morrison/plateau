@@ -1747,6 +1747,7 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
     count = 0
     core_whole_pairs.sort(key=lambda x: x[2])
     fasta_ind = 0
+    unique_wholes = []
     for a in core_whole_pairs:
         count += 1
         entry = ['']*len(headers_out)
@@ -1754,9 +1755,48 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
         whole = a[1]
         fasta_seq = a[2]
         prot_str = a[3]
+        unique_wholes.append(prot_str + '--' + whole + '--' + fasta_seq)
 
+    unique_wholes = list(set(unique_wholes))
+    unique_wholes.sort()
 
+    for a in unique_wholes:
+        prots = a.split('--')[0]
+        whole = a.split('--')[1]
+        fasta_seq = a.split('--')[2]
 
+        core_matches = []
+        for b in core_whole_pairs:
+            core = b[0]
+            whole_test = b[1]
+            if whole_test == whole:
+                core_test = re.sub('\*','',core)
+                start_pos = len(whole.split(core)[0])
+                end_pos = start_pos + len(core)
+
+                core_matches.append([core, start_pos, end_pos])
+
+        core_matches = list(set(core_matches))
+
+        bin_str = ''
+        for i in range(0,len(whole)):
+            pos_num = '0'
+            for c in core_matches:
+                if c[1] <= i <= end_pos:
+                    pos_num = '1'
+            bin_str += pos_num
+
+        longest_cores = []
+        ind_pos = 0
+        for k in bin_str.split('0'):
+            if len(k) == 0:
+                ind_pos += 1
+            else:
+                longest_cores.append(whole[ind_pos:ind_pos+len(k)-1])
+                ind_pos += len(k)
+
+        for core in longest_cores:
+            core_pairs_2.append([core, whole, fasta_seq, prots])
 
 
     unique_exps = []
@@ -1776,10 +1816,10 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
     out = []
 
     count = 0
-    core_whole_pairs.sort(key=lambda x: x[2])
+    core_pairs_2.sort(key=lambda x: x[2])
     fasta_ind = 0
     unique_wholes = []
-    for a in core_whole_pairs:
+    for a in core_pairs_2:
         count += 1
         entry = ['']*len(headers_out)
         core = a[0]
@@ -4158,6 +4198,9 @@ elif filt_check == 'test':
     exp = str(exp)
     exp = re.sub("b'", '', exp)
     exp = re.sub("'", '', exp)
+    fasta_file = str(fasta_file)
+    fasta_file = re.sub("b'", '', fasta_file)
+    fasta_file = re.sub("'", '', fasta_file)
     evidence_file = str(evidence_file)
     pass_file = evidence_file.split('.txt')[0] + '_intens_norm.txt'
     epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
