@@ -1770,10 +1770,10 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
             whole_test = b[1]
             if whole_test == whole:
                 core_test = re.sub('\*','',core)
-                start_pos = len(whole.split(core)[0])
-                end_pos = start_pos + len(core)
-
-                core_matches.append([core, start_pos, end_pos])
+                if core_test in whole:
+                    start_pos = len(whole.split(core)[0])
+                    end_pos = start_pos + len(core)
+                    core_matches.append([core, start_pos, end_pos])
 
         bin_str = ''
         for i in range(0,len(whole)):
@@ -2178,6 +2178,7 @@ def final_output(exp_name, renorm_file, evidence_file, fasta_file, filt_check, d
     fasta_file = str(fasta_file)
     fasta_file = re.sub("b'", '', fasta_file)
     fasta_file = re.sub("'", '', fasta_file)
+    fasta_file = re.sub('_small', '', fasta_file)
     to_print.append('FASTA file used: ' + fasta_file.split('/')[-1])
 
     if filt_check == 'no_filt' or filt_check == 'test':
@@ -4180,13 +4181,13 @@ elif filt_check == 'filt_ready':
 elif filt_check == 'test':
     exp = 'k_test'
     exp = html.escape(exp).encode("ascii", "xmlcharrefreplace")
-    evidence_file = 'k_test.txt'
+    #evidence_file = 'k_test.txt'
+    #fasta_file = 'k_fasta.fasta'
     #evidence_file = 'test_evidence.txt'
-    #evidence_file = 'a_evidence.txt'
-    evidence_file = html.escape(evidence_file).encode("ascii", "xmlcharrefreplace")
-    fasta_file = 'k_fasta.fasta'
-    #fasta_file = 'a_fasta.fasta'
     #fasta_file = 'test_fasta.fasta'
+    evidence_file = 'a_evidence.txt'
+    fasta_file = 'a_fasta.fasta'
+    evidence_file = html.escape(evidence_file).encode("ascii", "xmlcharrefreplace")
     fasta_file = html.escape(fasta_file).encode("ascii", "xmlcharrefreplace")
     evidence_file = os.path.expanduser(evidence_file)
     fasta_file = os.path.expanduser(fasta_file)
@@ -4223,7 +4224,7 @@ elif filt_check == 'test':
     start = timeit.default_timer()
     #add_areas_to_evidence(evidence_file)
     stop = timeit.default_timer()
-    #print('add_areas_to_evidence time: ', stop - start)  
+    print('add_areas_to_evidence time: ', stop - start)  
 
     # 2. for each protein / condition, get list of matching peptides
     # this is used to generate the core epitopes for each condition
@@ -4232,31 +4233,31 @@ elif filt_check == 'test':
     #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
     fasta_file = fasta_file.split('.fasta')[0] + '_small.fasta'
     stop = timeit.default_timer()
-    #print('get_cond_peps time: ', stop - start)  
+    print('get_cond_peps time: ', stop - start)  
 
     # 3. generate epitopes from passing peptides
     start = timeit.default_timer()
     #gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
     stop = timeit.default_timer()
-    #print('gen_epitopes: ', stop - start)  
+    print('gen_epitopes: ', stop - start)  
 
     # 4. combine unique core epitopes
     # get total rel. intensity for each condition
     start = timeit.default_timer()
     #comb_epis(pass_file, core_file, exp)
-    #comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
+    comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
     stop = timeit.default_timer()
     print('comb_epis: ', stop - start)  
 
     # 5. Renormalize after filtering, etc.
     start = timeit.default_timer()
-    #renorm(epitope_final_file, imputation, filt_check)
+    renorm(epitope_final_file, imputation, filt_check)
     dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
     venn_html = []	
     filt_params = []
     final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
     stop = timeit.default_timer()
-    #print('cleanup: ', stop - start)  
+    print('cleanup: ', stop - start)  
 
     # 6. Remodel the landscapes to include jumps
     start = timeit.default_timer()
