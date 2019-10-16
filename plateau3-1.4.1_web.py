@@ -1770,7 +1770,8 @@ def comb_epis_2(evidence_file, epitope_file, exp_name, min_epi_len, fasta_file, 
             whole_test = b[1]
             if whole_test == whole:
                 core_test = re.sub('\*','',core)
-                if core_test in whole:
+                if core_test in whole and len(core_test) > 0:
+                    print(whole, core)
                     start_pos = len(whole.split(core)[0])
                     end_pos = start_pos + len(core)
                     core_matches.append([core, start_pos, end_pos])
@@ -3951,6 +3952,37 @@ def netmhciipan(final_file_in, length, dr_allele, core_file, fasta_file_whole, h
 
 
 
+def gen_evidence_from_peptides(pep_file):
+    cols = ['Sequence', 'Proteins']
+    raw, headers, inds = openfile(pep_file, cols)
+
+    exp_inds = []
+    for i in range(0,len(headers)):
+        if 'Intensity ' in headers[i]:
+            exp = headers[i].split('Intensity ')[-1]
+            exp_inds.append([exp, i])
+
+    headers_out = ['Sequence', 'Proteins', 'Raw file', 'Experiment', 'm/z', 'Retention time', 'Intensity']
+    out = []
+
+    for a in raw:
+        seq = a[inds[0]]
+        prots = a[inds[1]]
+
+        for b in exp_inds:
+            exp = b[0]
+            exp_ind = b[1]
+
+            if a[exp_ind] != '':
+                if float(a[exp_ind]) > 0.0:
+                    entry = [seq, prots, exp, exp, 'N/A', 'N/A', a[exp_ind]]
+                    out.append(entry)
+
+    out_file = pep_file.split('.txt')[0] + '_evidence.txt'
+    savefile(out_file, out, headers_out)
+
+    return out_file
+
 
 # Report
 # Take original evidence file, compare to Plateau output
@@ -4179,14 +4211,21 @@ elif filt_check == 'filt_ready':
     final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
 
 elif filt_check == 'test':
-    exp = 'k_test'
-    exp = html.escape(exp).encode("ascii", "xmlcharrefreplace")
+
+    exp = 'r_test'
+    peptides = 'r_peptides.txt'
+    gen_evidence_from_peptides(peptides)
+    evidence_file = peptides.split('.txt')[0] + '_evidence.txt'
+    fasta_file = 'r_fasta.fasta'
+
+    #exp = 'a_test'
     #evidence_file = 'k_test.txt'
     #fasta_file = 'k_fasta.fasta'
     #evidence_file = 'test_evidence.txt'
     #fasta_file = 'test_fasta.fasta'
-    evidence_file = 'a_evidence.txt'
-    fasta_file = 'a_fasta.fasta'
+    #evidence_file = 'a_evidence.txt'
+    #fasta_file = 'a_fasta.fasta'
+    exp = html.escape(exp).encode("ascii", "xmlcharrefreplace")
     evidence_file = html.escape(evidence_file).encode("ascii", "xmlcharrefreplace")
     fasta_file = html.escape(fasta_file).encode("ascii", "xmlcharrefreplace")
     evidence_file = os.path.expanduser(evidence_file)
@@ -4222,14 +4261,14 @@ elif filt_check == 'test':
     start_all = timeit.default_timer()
     # 1. add areas under curve
     start = timeit.default_timer()
-    #add_areas_to_evidence(evidence_file)
+    add_areas_to_evidence(evidence_file)
     stop = timeit.default_timer()
     print('add_areas_to_evidence time: ', stop - start)  
 
     # 2. for each protein / condition, get list of matching peptides
     # this is used to generate the core epitopes for each condition
     start = timeit.default_timer()
-    #get_cond_peps(pass_file, fasta_file)
+    get_cond_peps(pass_file, fasta_file)
     #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
     fasta_file = fasta_file.split('.fasta')[0] + '_small.fasta'
     stop = timeit.default_timer()
@@ -4237,7 +4276,7 @@ elif filt_check == 'test':
 
     # 3. generate epitopes from passing peptides
     start = timeit.default_timer()
-    #gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
+    gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
     stop = timeit.default_timer()
     print('gen_epitopes: ', stop - start)  
 
