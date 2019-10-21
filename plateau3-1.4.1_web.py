@@ -3989,7 +3989,7 @@ def gen_evidence_from_peptides(pep_file):
 # Number of peptides / epitopes (from HTML output)
 # Most important information to show...
 # Differential epitopes?
-
+# Biggest differences between conditions
 
 
 
@@ -4216,7 +4216,7 @@ elif filt_check == 'test':
     peptides = 'r_peptides.txt'
     gen_evidence_from_peptides(peptides)
     evidence_file = peptides.split('.txt')[0] + '_evidence.txt'
-    fasta_file = 'r_fasta.fasta'
+    fasta_file = 'human_review_iso.fasta'
 
     #exp = 'a_test'
     #evidence_file = 'k_test.txt'
