@@ -3984,6 +3984,122 @@ def gen_evidence_from_peptides(pep_file):
     return out_file
 
 
+
+
+def quant_separately(exp, evidence_file, fasta_file):
+    if evidence_file.split('_')[-1] == 'peptides.txt':
+        gen_evidence_from_peptides(evidence_file)
+        evidence_file = evidence_file.split('.txt')[0] + '_evidence.txt'
+
+    exp = html.escape(exp).encode("ascii", "xmlcharrefreplace")
+    evidence_file = html.escape(evidence_file).encode("ascii", "xmlcharrefreplace")
+    fasta_file = html.escape(fasta_file).encode("ascii", "xmlcharrefreplace")
+    evidence_file = os.path.expanduser(evidence_file)
+    fasta_file = os.path.expanduser(fasta_file)
+    min_epi_len = 13
+
+    exp = str(exp)
+    exp = re.sub("b'", '', exp)
+    exp = re.sub("'", '', exp)
+    fasta_file = str(fasta_file)
+    fasta_file = re.sub("b'", '', fasta_file)
+    fasta_file = re.sub("'", '', fasta_file)
+    evidence_file = str(evidence_file)
+    pass_file = evidence_file.split('.txt')[0] + '_intens_norm.txt'
+    epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
+    core_file = epi_file.split('.txt')[0] + '_epitopes.txt'
+    epitope_final_file = exp + '_core_epitopes_final.txt'
+    renorm_file = epitope_final_file.split('.txt')[0] + '_renorm.txt'
+    #imputation = 'no_imputation'
+
+    # For testing filtered runs
+    var_file = 'ktest_vars_final.txt'
+    tech_rep_min = 2
+    bio_rep_min = 1
+    imputation = 'lowest_all'
+
+    # For NetMHCIIpan
+    length = 11
+    dr_allele = 'DRB1_0101'
+    high_cutoff = 1.0/50.0
+    med_cutoff = 1.0/500.0
+
+    start_all = timeit.default_timer()
+
+    unique_exps = []
+    raw, headers, inds = openfile(evidence_file, ['Raw file'])
+    for a in raw:
+        unique_exps.append(a[inds[0]])
+    unique_exps = list(set(unique_exps))
+    unique_exps.sorted()
+
+    for exp_name in unique_exps:
+        out = []
+        for a in raw:
+            if a[inds[0]] == exp_name:
+                out.append(a)
+        evidence_file = evidence_file.split('.txt')[0] + '_' + exp_name + '.txt'
+        savefile(evidence_file, out, headers)
+
+        exp = exp.split('_')[0]
+        exp += '_' + exp_name
+
+        # 1. add areas under curve
+        start = timeit.default_timer()
+        add_areas_to_evidence(evidence_file)
+        stop = timeit.default_timer()
+        print('add_areas_to_evidence time: ', stop - start)  
+
+        # 2. for each protein / condition, get list of matching peptides
+        # this is used to generate the core epitopes for each condition
+        start = timeit.default_timer()
+        get_cond_peps(pass_file, fasta_file)
+        #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
+        fasta_file = fasta_file.split('.fasta')[0] + '_small.fasta'
+        stop = timeit.default_timer()
+        print('get_cond_peps time: ', stop - start)  
+
+        # 3. generate epitopes from passing peptides
+        start = timeit.default_timer()
+        gen_epitopes(epi_file, fasta_file, min_epi_len, min_step_size, min_epi_overlap)
+        stop = timeit.default_timer()
+        print('gen_epitopes: ', stop - start)  
+
+        # 4. combine unique core epitopes
+        # get total rel. intensity for each condition
+        start = timeit.default_timer()
+        #comb_epis(pass_file, core_file, exp)
+        comb_epis_2(pass_file, core_file, exp, min_epi_len, fasta_file, epi_file)
+        stop = timeit.default_timer()
+        print('comb_epis: ', stop - start)  
+
+        # 5. Renormalize after filtering, etc.
+        start = timeit.default_timer()
+        renorm(epitope_final_file, imputation, filt_check)
+        dist_fig = gen_len_dist(exp, evidence_file, renorm_file)
+        venn_html = []	
+        filt_params = []
+        final_output(exp, renorm_file, evidence_file, fasta_file, filt_check, dist_fig, venn_html, filt_params)
+        stop = timeit.default_timer()
+        print('cleanup: ', stop - start)  
+
+        # 6. Remodel the landscapes to include jumps
+        start = timeit.default_timer()
+        #remodel_wholes(renorm_file, fasta_file, core_file)
+        stop = timeit.default_timer()
+        #print('remodel: ', stop - start)  
+
+        # 7. NetMHCIIpan
+        start = timeit.default_timer()
+        #netmhciipan(renorm_file, length, dr_allele, core_file, fasta_file, high_cutoff, med_cutoff, expdir, net_path, epi_file, iedb_path)
+        stop = timeit.default_timer()
+        #print('netmhciipan: ', stop - start)  
+
+        stop_all = timeit.default_timer()
+        print('Total: ', stop_all - start_all)  
+
+
+
 # Report
 # Take original evidence file, compare to Plateau output
 # Number of peptides / epitopes (from HTML output)
@@ -4313,5 +4429,14 @@ elif filt_check == 'test':
 
     stop_all = timeit.default_timer()
     print('Total: ', stop_all - start_all)  
+
+elif filt_check == 'quant_separately':
+    exp = 'r_test'
+    evidence_file = 'r_peptides.txt'
+    fasta_file = 'human_review_iso.fasta'
+
+    quant_separately(exp, evidence_file, fasta_file)
+
+
 
 
