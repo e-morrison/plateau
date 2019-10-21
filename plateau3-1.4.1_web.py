@@ -2182,7 +2182,7 @@ def final_output(exp_name, renorm_file, evidence_file, fasta_file, filt_check, d
     fasta_file = re.sub('_small', '', fasta_file)
     to_print.append('FASTA file used: ' + fasta_file.split('/')[-1])
 
-    if filt_check == 'no_filt' or filt_check == 'test':
+    if filt_check == 'no_filt' or filt_check == 'test' or filt_check == 'quant_separately':
         to_print.append('No replicate filtering used.<br>')
     else:
         to_print.append('Filtering used:')
@@ -4005,11 +4005,11 @@ def quant_separately(exp, evidence_file, fasta_file):
     fasta_file = re.sub("b'", '', fasta_file)
     fasta_file = re.sub("'", '', fasta_file)
     evidence_file = str(evidence_file)
-    pass_file = evidence_file.split('.txt')[0] + '_intens_norm.txt'
-    epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
-    core_file = epi_file.split('.txt')[0] + '_epitopes.txt'
-    epitope_final_file = exp + '_core_epitopes_final.txt'
-    renorm_file = epitope_final_file.split('.txt')[0] + '_renorm.txt'
+    #pass_file = evidence_file.split('.txt')[0] + '_intens_norm.txt'
+    #epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
+    #core_file = epi_file.split('.txt')[0] + '_epitopes.txt'
+    #epitope_final_file = exp + '_core_epitopes_final.txt'
+    #renorm_file = epitope_final_file.split('.txt')[0] + '_renorm.txt'
     #imputation = 'no_imputation'
 
     # For testing filtered runs
@@ -4031,7 +4031,8 @@ def quant_separately(exp, evidence_file, fasta_file):
     for a in raw:
         unique_exps.append(a[inds[0]])
     unique_exps = list(set(unique_exps))
-    unique_exps.sorted()
+    unique_exps.sort()
+    prev_exp_name = 'XXXX'
 
     for exp_name in unique_exps:
         out = []
@@ -4041,8 +4042,16 @@ def quant_separately(exp, evidence_file, fasta_file):
         evidence_file = evidence_file.split('.txt')[0] + '_' + exp_name + '.txt'
         savefile(evidence_file, out, headers)
 
-        exp = exp.split('_')[0]
+        if '_' + prev_exp_name in exp:
+            exp = exp.split('_'+prev_exp_name)[0]
         exp += '_' + exp_name
+        prev_exp_name = exp_name
+    
+        pass_file = evidence_file.split('.txt')[0] + '_intens_norm.txt'
+        epi_file = pass_file.split('.txt')[0] + '_passpeps.txt'
+        core_file = epi_file.split('.txt')[0] + '_epitopes.txt'
+        epitope_final_file = exp + '_core_epitopes_final.txt'
+        renorm_file = epitope_final_file.split('.txt')[0] + '_renorm.txt'
 
         # 1. add areas under curve
         start = timeit.default_timer()
@@ -4055,9 +4064,11 @@ def quant_separately(exp, evidence_file, fasta_file):
         start = timeit.default_timer()
         get_cond_peps(pass_file, fasta_file)
         #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
+        fasta_file = re.sub('_small', '', fasta_file)
         fasta_file = fasta_file.split('.fasta')[0] + '_small.fasta'
         stop = timeit.default_timer()
         print('get_cond_peps time: ', stop - start)  
+        exp_end = exp.split('_')[-1]
 
         # 3. generate epitopes from passing peptides
         start = timeit.default_timer()
