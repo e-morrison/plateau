@@ -4034,12 +4034,14 @@ def quant_separately(exp, evidence_file, fasta_file):
     unique_exps.sort()
     prev_exp_name = 'XXXX'
 
+    orig_evidence = evidence_file
+
     for exp_name in unique_exps:
         out = []
         for a in raw:
             if a[inds[0]] == exp_name:
                 out.append(a)
-        evidence_file = evidence_file.split('.txt')[0] + '_' + exp_name + '.txt'
+        evidence_file = orig_evidence.split('.txt')[0] + '_' + exp_name + '.txt'
         savefile(evidence_file, out, headers)
 
         if '_' + prev_exp_name in exp:
@@ -4065,7 +4067,9 @@ def quant_separately(exp, evidence_file, fasta_file):
         get_cond_peps(pass_file, fasta_file)
         #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
         fasta_file = re.sub('_small', '', fasta_file)
+        fasta_file = re.sub('_small', '', fasta_file)
         fasta_file = fasta_file.split('.fasta')[0] + '_small.fasta'
+        fasta_file = re.sub('_small_small', '_small', fasta_file)
         stop = timeit.default_timer()
         print('get_cond_peps time: ', stop - start)  
         exp_end = exp.split('_')[-1]
