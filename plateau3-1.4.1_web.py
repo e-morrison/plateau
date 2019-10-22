@@ -2377,9 +2377,9 @@ def gen_len_dist(exp, evidence_file, epitope_file):
     
     print('Bins:', num_bins, len(peptide_lens), len(epitope_lens))
 
-    if len(peptide_lens) > 0 and num_bins > 0:
+    if len(peptide_lens) > 1 and num_bins > 0:
         n, bins, patches = plt.hist(peptide_lens, max(peptide_lens)-min(peptide_lens), facecolor='blue', alpha=0.5, label='Peptides')
-        if len(epitope_lens) > 0 and num_bins > 0:
+        if len(epitope_lens) > 1 and num_bins > 0:
             n, bins, patches = plt.hist(epitope_lens, max(epitope_lens)-min(epitope_lens), facecolor='red', alpha=0.5, label='Epitopes')
 	
         ax.set_xlabel('Length (AA)')
@@ -3984,6 +3984,61 @@ def gen_evidence_from_peptides(pep_file):
     savefile(out_file, out, headers_out)
 
     return out_file
+
+
+
+
+def comb_sep(exp, exp_list):
+    comb_data = []
+    headers_out = []
+    unique_cores = []
+
+    for exp_name in exp_list:
+        file_in = exp + '_' + exp_name + '_core_epitopes_final_renorm.txt'
+        raw, headers, inds = openfile(file_in, ['Core Epitopes'])
+
+        for b in headers:
+            if b not in headers_out:
+                headers_out.append(b)
+
+        for a in raw:
+            unique_cores.append(a[inds[0]])
+
+    unique_cores = list(set(unique_cores))
+    unique_cores.sort()
+
+    out = []
+
+    for core in unique_cores:
+        entry = ['']*len(headers_out)
+
+        for exp_name in exp_list:
+            file_in = exp + '_' + exp_name + '_core_epitopes_final_renorm.txt'
+            raw, headers, inds = openfile(file_in, ['Core Epitopes'])
+            ent_ind = ''
+            for i in range(0,len(headers_out)):
+                if headers_out[i] == headers[5]:
+                    ent_ind = i
+
+            exp_vals = []
+            for c in raw:
+                exp_vals.append(float(c[5]))
+                if c[inds[0]] == core:
+                    entry[1] = c[1]
+                    entry[2] = str(len(core))
+                    entry[3] = c[3]
+                    entry[4] = c[4]
+
+                    entry[ent_ind] = c[5]
+                    entry[ent_ind+1] = c[6]
+                    entry[ent_ind+2] = c[7]
+
+            if entry[ent_ind] == '' and len(exp_vals) > 0:
+                entry[ent_ind] = str(min(exp_vals))
+                entry[ent_ind+1] = 'N.D.'
+                entry[ent_ind+2] = 'N.D.'
+
+        out.append(entry)
 
 
 
