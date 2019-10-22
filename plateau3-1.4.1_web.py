@@ -4009,7 +4009,10 @@ def comb_sep(exp, exp_list):
 
     out = []
 
+    count = 0
     for core in unique_cores:
+        count += 1
+        print(core, count, '/', len(unique_cores))
         entry = ['']*len(headers_out)
 
         for exp_name in exp_list:
@@ -4040,6 +4043,8 @@ def comb_sep(exp, exp_list):
 
         out.append(entry)
 
+    out_file = exp + '_quant_sep_final.txt'
+    savefile(out_file, out, headers_out)
 
 
 
@@ -4093,6 +4098,7 @@ def quant_separately(exp, evidence_file, fasta_file):
 
     orig_evidence = evidence_file
     orig_fasta = fasta_file
+    exp_orig = exp
 
     for exp_name in unique_exps:
         fasta_file = orig_fasta
@@ -4173,6 +4179,7 @@ def quant_separately(exp, evidence_file, fasta_file):
         stop_all = timeit.default_timer()
         print('Total: ', stop_all - start_all)  
 
+    comb_sep(exp_orig, unique_exps)
 
 
 # Report
