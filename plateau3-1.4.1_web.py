@@ -2374,10 +2374,12 @@ def gen_len_dist(exp, evidence_file, epitope_file):
         max_len = max(peptide_lens)
         min_len = min(peptide_lens)
         num_bins = max_len - min_len
+    
+    print('Bins:', num_bins, len(peptide_lens), len(epitope_lens))
 
-    if len(peptide_lens) > 0:
+    if len(peptide_lens) > 0 and num_bins > 0:
         n, bins, patches = plt.hist(peptide_lens, max(peptide_lens)-min(peptide_lens), facecolor='blue', alpha=0.5, label='Peptides')
-        if len(epitope_lens) > 0:
+        if len(epitope_lens) > 0 and num_bins > 0:
             n, bins, patches = plt.hist(epitope_lens, max(epitope_lens)-min(epitope_lens), facecolor='red', alpha=0.5, label='Epitopes')
 	
         ax.set_xlabel('Length (AA)')
@@ -4035,8 +4037,11 @@ def quant_separately(exp, evidence_file, fasta_file):
     prev_exp_name = 'XXXX'
 
     orig_evidence = evidence_file
+    orig_fasta = fasta_file
 
     for exp_name in unique_exps:
+        fasta_file = orig_fasta
+
         out = []
         for a in raw:
             if a[inds[0]] == exp_name:
@@ -4343,15 +4348,15 @@ elif filt_check == 'filt_ready':
 
 elif filt_check == 'test':
 
-    exp = 'r_test'
-    peptides = 'r_peptides.txt'
-    gen_evidence_from_peptides(peptides)
-    evidence_file = peptides.split('.txt')[0] + '_evidence.txt'
-    fasta_file = 'human_review_iso.fasta'
+    #exp = 'r_test'
+    #peptides = 'r_peptides.txt'
+    #gen_evidence_from_peptides(peptides)
+    #evidence_file = peptides.split('.txt')[0] + '_evidence.txt'
+    #fasta_file = 'human_review_iso.fasta'
 
-    #exp = 'a_test'
-    #evidence_file = 'k_test.txt'
-    #fasta_file = 'k_fasta.fasta'
+    exp = 'k_test'
+    evidence_file = 'k_test.txt'
+    fasta_file = 'k_fasta.fasta'
     #evidence_file = 'test_evidence.txt'
     #fasta_file = 'test_fasta.fasta'
     #evidence_file = 'a_evidence.txt'
@@ -4399,8 +4404,8 @@ elif filt_check == 'test':
     # 2. for each protein / condition, get list of matching peptides
     # this is used to generate the core epitopes for each condition
     start = timeit.default_timer()
-    get_cond_peps(pass_file, fasta_file)
-    #get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
+    #get_cond_peps(pass_file, fasta_file)
+    get_cond_peps_filt(pass_file, fasta_file, var_file, bio_rep_min, tech_rep_min)
     fasta_file = fasta_file.split('.fasta')[0] + '_small.fasta'
     stop = timeit.default_timer()
     print('get_cond_peps time: ', stop - start)  
@@ -4446,9 +4451,9 @@ elif filt_check == 'test':
     print('Total: ', stop_all - start_all)  
 
 elif filt_check == 'quant_separately':
-    exp = 'r_test'
-    evidence_file = 'r_peptides.txt'
-    fasta_file = 'human_review_iso.fasta'
+    exp = 'k_sep'
+    evidence_file = 'k_test.txt'
+    fasta_file = 'k_fasta.fasta'
 
     quant_separately(exp, evidence_file, fasta_file)
 
