@@ -4002,7 +4002,8 @@ def comb_sep(exp, exp_list):
                 headers_out.append(b)
 
         for a in raw:
-            unique_cores.append(a[inds[0]])
+            if len(a) > 0:
+                unique_cores.append(a[0])
 
     unique_cores = list(set(unique_cores))
     unique_cores.sort()
@@ -4026,15 +4027,16 @@ def comb_sep(exp, exp_list):
             exp_vals = []
             for c in raw:
                 exp_vals.append(float(c[5]))
-                if c[inds[0]] == core:
-                    entry[1] = c[1]
-                    entry[2] = str(len(core))
-                    entry[3] = c[3]
-                    entry[4] = c[4]
+                if len(c) > 0:
+                    if c[0] == core:
+                        entry[1] = c[1]
+                        entry[2] = str(len(core))
+                        entry[3] = c[3]
+                        entry[4] = c[4]
 
-                    entry[ent_ind] = c[5]
-                    entry[ent_ind+1] = c[6]
-                    entry[ent_ind+2] = c[7]
+                        entry[ent_ind] = c[5]
+                        entry[ent_ind+1] = c[6]
+                        entry[ent_ind+2] = c[7]
 
             if entry[ent_ind] == '' and len(exp_vals) > 0:
                 entry[ent_ind] = str(min(exp_vals))
