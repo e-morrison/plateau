@@ -4020,10 +4020,11 @@ def comb_sep(exp, exp_list):
             file_in = exp + '_' + exp_name + '_core_epitopes_final_renorm.txt'
             raw, headers, inds = openfile(file_in, ['Core Epitopes'])
             ent_ind = ''
-            if len(headers) >= 5:
+            if len(headers) > 5:
                 for i in range(0,len(headers_out)):
                     if headers_out[i] == headers[5]:
                         ent_ind = i
+                        prev_ent_ind = i
 
                 exp_vals = []
                 for c in raw:
@@ -4039,10 +4040,18 @@ def comb_sep(exp, exp_list):
                             entry[ent_ind+1] = c[6]
                             entry[ent_ind+2] = c[7]
 
-            if entry[ent_ind] == '' and len(exp_vals) > 0:
-                entry[ent_ind] = str(min(exp_vals))
-                entry[ent_ind+1] = 'N.D.'
-                entry[ent_ind+2] = 'N.D.'
+            if ent_ind != '':
+                if entry[ent_ind] == '' and len(exp_vals) > 0:
+                    entry[ent_ind] = str(min(exp_vals))
+                    entry[ent_ind+1] = 'N.D.'
+                    entry[ent_ind+2] = 'N.D.'
+            else:
+                ent_ind = prev_ent_ind + 3
+                prev_ent_ind = ent_ind
+                if entry[ent_ind] == '' and len(exp_vals) > 0:
+                    entry[ent_ind] = str(min(exp_vals))
+                    entry[ent_ind+1] = 'N.D.'
+                    entry[ent_ind+2] = 'N.D.'
 
         out.append(entry)
 
