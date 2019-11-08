@@ -4531,6 +4531,8 @@ elif filt_check == 'quant_separately':
 
     quant_separately(exp, evidence_file, fasta_file)
 
-
+elif filt_check == 'peptides_to_evidence':
+    peptides = sys.argv[2]
+    gen_evidence_from_peptides(peptides)
 
 
